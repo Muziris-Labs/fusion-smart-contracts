@@ -9,7 +9,18 @@ import "./handler/TokenCallbackHandler.sol";
 import "./external/Fusion2771Context.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/interfaces/IERC20Metadata.sol";
-import "./base/LogManager.sol";
+import {Enum} from "./libraries/Enum.sol";
+
+/**
+ * @title Fusion - A Smart Contract Wallet powered by ZK-SNARKs with support for Cross-Chain Transactions
+ * @dev Most important concepts :
+ *    - TxVerifier: Address of the Noir based ZK-SNARK verifier contract that will be used to verify proofs and execute transactions on the Valerium Wallet
+ *    - Gas Tank: The gas tank is EOA or smart contract where the fees will be transferred
+ *    - DOMAIN: The domain of the Valerium Wallet
+ *    - TxHash: The hash used as a public inputs for the transaction verifier
+ *    - nonce: The nonce of the Fusion Wallet
+ * @author Anoy Roy Chowdhury - <anoy@valerium.id>
+ */
 
 contract Fusion is
     Singleton,
@@ -21,317 +32,194 @@ contract Fusion is
 {
     string public constant VERSION = "1.0.0";
 
+    // The domain of the Fusion Wallet
     bytes32 public DOMAIN;
 
+    // The address of the Noir based ZK-SNARK verifier contract
     address public TxVerifier;
-    address public RecoveryVerifier;
 
+    // The hash used as a public inputs for verifiers
     bytes32 public TxHash;
-    bytes32 public RecoveryHash;
 
+    // The address of the gas tank contract or EOA
     address public GasTank;
 
-    bytes public PublicStorage;
-
+    // The nonce of the Fusion Wallet
     uint256 private nonce;
 
     event SetupFusion(
         bytes32 domain,
         address txVerifier,
-        address recoveryVerifier,
         address forwarder,
         address gasTank,
-        bytes32 txHash,
-        bytes32 recoveryHash,
-        bytes publicStorage
+        bytes32 txHash
     );
 
-    event ExecutionResult(bytes4 magicValue);
-
+    /**
+     * @notice Initializes the Fusion Wallet
+     * @dev The function is called only once during deployment
+     *      If the proxy was created without setting up, anyone can call setup and claim the proxy
+     * @param _domain  The domain of the Fusion Wallet
+     * @param _txVerifier The address of the Noir based ZK-SNARK verifier contract
+     * @param _forwarder The address of the trusted forwarder
+     * @param _gasTank The address of the gas tank contract or EOA
+     * @param _txHash The hash used as a public inputs for verifiers
+     */
     function setupFusion(
         bytes32 _domain,
         address _txVerifier,
-        address _recoveryVerifier,
         address _forwarder,
         address _gasTank,
-        bytes32 _txHash,
-        bytes32 _recoveryHash,
-        bytes memory _publicStorage
+        bytes32 _txHash
     ) external {
         require(DOMAIN == bytes32(0), "Fusion: already initialized");
         require(TxVerifier == address(0), "Fusion: already initialized");
-        require(RecoveryVerifier == address(0), "Fusion: already initialized");
         require(GasTank == address(0), "Fusion: already initialized");
 
         setupTrustedForwarder(_forwarder);
         DOMAIN = _domain;
         TxVerifier = _txVerifier;
-        RecoveryVerifier = _recoveryVerifier;
         GasTank = _gasTank;
         TxHash = _txHash;
-        RecoveryHash = _recoveryHash;
-        PublicStorage = _publicStorage;
 
-        emit SetupFusion(
-            _domain,
-            _txVerifier,
-            _recoveryVerifier,
-            _forwarder,
-            _gasTank,
-            _txHash,
-            _recoveryHash,
-            _publicStorage
-        );
+        emit SetupFusion(_domain, _txVerifier, _forwarder, _gasTank, _txHash);
     }
 
+    /**
+     * @notice Executes a transaction
+     * @param _proof The zk-SNARK proof
+     * @param to the address of the contract to call
+     * @param value The amount of Ether to send
+     * @param data The data payload for the call
+     * @param operation  The type of call to perform
+     */
     function executeTx(
         bytes calldata _proof,
         address to,
         uint256 value,
-        bytes calldata data
-    ) public payable notTrustedForwarder returns (bytes4) {
-        if (!verify(_proof, _useNonce(), TxHash, TxVerifier, msg.sender)) {
-            emit ExecutionResult(INVALID_PROOF);
-            return INVALID_PROOF;
-        }
-        if (!execute(to, value, data, gasleft())) {
-            emit ExecutionResult(UNEXPECTED_ERROR);
-            return UNEXPECTED_ERROR;
-        }
-        emit ExecutionResult(EXECUTION_SUCCESSFUL);
-        return EXECUTION_SUCCESSFUL;
+        bytes calldata data,
+        Enum.Operation operation
+    ) public payable notTrustedForwarder returns (bool success) {
+        // Verifying the proof
+        require(
+            verify(_proof, _useNonce(), TxHash, TxVerifier, msg.sender),
+            "Fusion: invalid proof"
+        );
+
+        // Execute the call
+        success = execute(to, value, data, operation, gasleft());
     }
 
+    /**
+     * @notice Executes a batch of transactions.
+     * @dev This method will revert if any of the transactions fail.
+     * @param _proof The zk-SNARK proof
+     * @param transactions Array of Transaction objects.
+     */
     function executeBatchTx(
         bytes calldata _proof,
-        address[] calldata to,
-        uint256[] calldata value,
-        bytes[] calldata data
-    ) public payable notTrustedForwarder returns (bytes4) {
-        if (!verify(_proof, _useNonce(), TxHash, TxVerifier, msg.sender)) {
-            emit ExecutionResult(INVALID_PROOF);
-            return INVALID_PROOF;
-        }
-        if (!batchExecute(to, value, data)) {
-            emit ExecutionResult(UNEXPECTED_ERROR);
-            return UNEXPECTED_ERROR;
-        }
-        emit ExecutionResult(EXECUTION_SUCCESSFUL);
-        return EXECUTION_SUCCESSFUL;
+        Transaction[] calldata transactions
+    ) public payable notTrustedForwarder {
+        // Verifying the proof
+        require(
+            verify(_proof, _useNonce(), TxHash, TxVerifier, msg.sender),
+            "Fusion: invalid proof"
+        );
+
+        // Execute the batch call
+        batchExecute(transactions, gasleft());
     }
 
-    function executeRecovery(
-        bytes calldata _proof,
-        bytes32 _newTxHash,
-        address _newTxVerifier,
-        bytes calldata _publicStorage
-    ) public payable notTrustedForwarder returns (bytes4) {
-        if (
-            !verify(
-                _proof,
-                _useNonce(),
-                RecoveryHash,
-                RecoveryVerifier,
-                msg.sender
-            )
-        ) {
-            emit ExecutionResult(INVALID_PROOF);
-            return INVALID_PROOF;
-        }
-        TxHash = _newTxHash;
-        TxVerifier = _newTxVerifier;
-        PublicStorage = _publicStorage;
-
-        emit ExecutionResult(RECOVERY_SUCCESSFUL);
-        return RECOVERY_SUCCESSFUL;
-    }
-
-    function changeRecovery(
-        bytes calldata _proof,
-        bytes32 _newRecoveryHash,
-        address _newRecoveryVerifier,
-        bytes calldata _publicStorage
-    ) public payable notTrustedForwarder returns (bytes4) {
-        if (
-            !verify(
-                _proof,
-                _useNonce(),
-                RecoveryHash,
-                RecoveryVerifier,
-                msg.sender
-            )
-        ) {
-            emit ExecutionResult(INVALID_PROOF);
-            return INVALID_PROOF;
-        }
-        RecoveryHash = _newRecoveryHash;
-        RecoveryVerifier = _newRecoveryVerifier;
-        PublicStorage = _publicStorage;
-
-        emit ExecutionResult(CHANGE_SUCCESSFUL);
-        return CHANGE_SUCCESSFUL;
-    }
-
+    /**
+     * @notice Executes a transaction with a trusted forwarder
+     * @dev The function is called by the trusted forwarder
+     *      The function will revert if the proof is invalid or the execution fails
+     * @param _proof The zk-SNARK proof
+     * @param to the address of the contract to call
+     * @param value The amount of Ether to send
+     * @param data The data payload for the call
+     * @param operation  The type of call to perform
+     * @param token The address of the token to be used for fees
+     * @param gasPrice The gas price for the transaction
+     * @param baseGas The base gas for the transaction
+     * @param estimatedFees The estimated fees for the transaction
+     */
     function executeTxWithForwarder(
         bytes calldata _proof,
-        address from,
         address to,
         uint256 value,
         bytes calldata data,
+        Enum.Operation operation,
         address token,
         uint256 gasPrice,
         uint256 baseGas,
         uint256 estimatedFees
-    ) public payable onlyTrustedForwarder returns (bytes4 magicValue) {
-        if (!verify(_proof, _useNonce(), TxHash, TxVerifier, from)) {
-            emit ExecutionResult(INVALID_PROOF);
-            return INVALID_PROOF;
-        }
+    ) public payable onlyTrustedForwarder {
+        // Verifying the proof
+        require(
+            verify(_proof, _useNonce(), TxHash, TxVerifier, tx.origin),
+            "Fusion: invalid proof"
+        );
 
-        if (!checkBalance(token, estimatedFees)) {
-            emit ExecutionResult(INSUFFICIENT_BALANCE);
-            return INSUFFICIENT_BALANCE;
-        }
+        // Check if the balance is sufficient
+        require(
+            checkBalance(token, estimatedFees),
+            "Fusion: insufficient balance"
+        );
 
         uint256 startGas = gasleft();
 
-        magicValue = EXECUTION_SUCCESSFUL;
-
-        if (!execute(to, value, data, gasleft())) {
-            magicValue = UNEXPECTED_ERROR;
-        }
-
-        magicValue = chargeFees(
-            startGas,
-            gasPrice,
-            baseGas,
-            GasTank,
-            token,
-            magicValue
+        require(
+            execute(to, value, data, operation, gasleft()),
+            "Fusion: execution failed"
         );
-        emit ExecutionResult(magicValue);
+
+        chargeFees(startGas, gasPrice, baseGas, GasTank, token);
     }
 
+    /**
+     * @notice Executes a batch of transactions with a trusted forwarder
+     * @dev The function is called by the trusted forwarder
+     *      The function will revert if the proof is invalid or any of the execution fails
+     * @param _proof The zk-SNARK proof
+     * @param transactions Array of Transaction objects.
+     * @param token The address of the token to be used for fees
+     * @param gasPrice The gas price for the transaction
+     * @param baseGas The base gas for the transaction
+     * @param estimatedFees The estimated fees for the transaction
+     */
     function executeBatchTxWithForwarder(
         bytes calldata _proof,
-        address from,
-        address[] calldata to,
-        uint256[] calldata value,
-        bytes[] calldata data,
+        Transaction[] calldata transactions,
         address token,
         uint256 gasPrice,
         uint256 baseGas,
         uint256 estimatedFees
-    ) public payable onlyTrustedForwarder returns (bytes4 magicValue) {
-        if (!verify(_proof, _useNonce(), TxHash, TxVerifier, from)) {
-            emit ExecutionResult(INVALID_PROOF);
-            return INVALID_PROOF;
-        }
+    ) public payable onlyTrustedForwarder {
+        // Verifying the proof
+        require(
+            verify(_proof, _useNonce(), TxHash, TxVerifier, tx.origin),
+            "Fusion: invalid proof"
+        );
 
-        if (checkBalance(token, estimatedFees) == false) {
-            emit ExecutionResult(INSUFFICIENT_BALANCE);
-            return INSUFFICIENT_BALANCE;
-        }
+        // Check if the balance is sufficient
+        require(
+            checkBalance(token, estimatedFees),
+            "Fusion: insufficient balance"
+        );
 
         uint256 startGas = gasleft();
 
-        magicValue = EXECUTION_SUCCESSFUL;
+        batchExecute(transactions, gasleft());
 
-        if (batchExecute(to, value, data)) {
-            magicValue = UNEXPECTED_ERROR;
-        }
-
-        magicValue = chargeFees(
-            startGas,
-            gasPrice,
-            baseGas,
-            GasTank,
-            token,
-            magicValue
-        );
-        emit ExecutionResult(magicValue);
+        chargeFees(startGas, gasPrice, baseGas, GasTank, token);
     }
 
-    function executeRecoveryWithForwarder(
-        bytes calldata _proof,
-        address from,
-        bytes32 _newTxHash,
-        address _newTxVerifier,
-        bytes calldata _publicStorage,
-        address token,
-        uint256 gasPrice,
-        uint256 baseGas,
-        uint256 estimatedFees
-    ) public payable onlyTrustedForwarder returns (bytes4 magicValue) {
-        if (
-            !verify(_proof, _useNonce(), RecoveryHash, RecoveryVerifier, from)
-        ) {
-            emit ExecutionResult(INVALID_PROOF);
-            return INVALID_PROOF;
-        }
-
-        if (!checkBalance(token, estimatedFees)) {
-            emit ExecutionResult(INSUFFICIENT_BALANCE);
-            return INSUFFICIENT_BALANCE;
-        }
-
-        uint256 startGas = gasleft();
-
-        TxHash = _newTxHash;
-        TxVerifier = _newTxVerifier;
-        PublicStorage = _publicStorage;
-
-        magicValue = chargeFees(
-            startGas,
-            gasPrice,
-            baseGas,
-            GasTank,
-            token,
-            RECOVERY_SUCCESSFUL
-        );
-        emit ExecutionResult(magicValue);
-    }
-
-    function changeRecoveryWithForwarder(
-        bytes calldata _proof,
-        address from,
-        bytes32 _newRecoveryHash,
-        address _newRecoveryVerifier,
-        bytes calldata _publicStorage,
-        address token,
-        uint256 gasPrice,
-        uint256 baseGas,
-        uint256 estimatedFees
-    ) public payable onlyTrustedForwarder returns (bytes4 magicValue) {
-        if (
-            !verify(_proof, _useNonce(), RecoveryHash, RecoveryVerifier, from)
-        ) {
-            emit ExecutionResult(INVALID_PROOF);
-            return INVALID_PROOF;
-        }
-
-        if (!checkBalance(token, estimatedFees)) {
-            emit ExecutionResult(INSUFFICIENT_BALANCE);
-            return INSUFFICIENT_BALANCE;
-        }
-
-        uint256 startGas = gasleft();
-
-        RecoveryHash = _newRecoveryHash;
-        RecoveryVerifier = _newRecoveryVerifier;
-        PublicStorage = _publicStorage;
-
-        magicValue = chargeFees(
-            startGas,
-            gasPrice,
-            baseGas,
-            GasTank,
-            token,
-            CHANGE_SUCCESSFUL
-        );
-        emit ExecutionResult(magicValue);
-    }
-
+    /**
+     * @notice Checks if the balance is sufficient
+     * @param token The address of the token to be used for fees
+     * @param estimatedFees The estimated fees for the transaction
+     */
     function checkBalance(
         address token,
         uint256 estimatedFees
@@ -353,6 +241,11 @@ contract Fusion is
         return true;
     }
 
+    /**
+     * @notice Checks if the signature is valid
+     * @param _hash The hash to be signed
+     * @param _signature The signature to be verified
+     */
     function isValidSignature(
         bytes32 _hash,
         bytes calldata _signature
@@ -364,17 +257,19 @@ contract Fusion is
         }
     }
 
+    /**
+     * @notice Returns the nonce of the Fusion Wallet
+     */
     function getNonce() public view returns (uint256) {
         return nonce;
     }
 
+    /**
+     * @notice Returns the nonce of the Fusion Wallet and increments it
+     */
     function _useNonce() internal returns (uint256) {
         unchecked {
             return nonce++;
         }
     }
-
-    receive() external payable {}
-
-    fallback() external payable {}
 }

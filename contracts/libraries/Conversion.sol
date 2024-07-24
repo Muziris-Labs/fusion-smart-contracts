@@ -45,18 +45,6 @@ library Conversion {
         return string(s);
     }
 
-    function bytesToString(
-        bytes memory data
-    ) internal pure returns (string memory) {
-        bytes memory alphabet = "0123456789abcdef";
-        bytes memory str = new bytes(2 * data.length);
-        for (uint256 i = 0; i < data.length; i++) {
-            str[2 * i] = alphabet[uint8(data[i] >> 4)];
-            str[2 * i + 1] = alphabet[uint8(data[i] & 0x0f)];
-        }
-        return string(str);
-    }
-
     function hashMessage(
         string memory message
     ) internal pure returns (bytes32) {
