@@ -10,6 +10,7 @@ import "./external/Fusion2771Context.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/interfaces/IERC20Metadata.sol";
 import {Enum} from "./libraries/Enum.sol";
+import {Transaction} from "./libraries/Transaction.sol";
 
 /**
  * @title Fusion - A Smart Contract Wallet powered by ZK-SNARKs with support for Cross-Chain Transactions
@@ -88,26 +89,33 @@ contract Fusion is
     /**
      * @notice Executes a transaction
      * @param _proof The zk-SNARK proof
-     * @param to the address of the contract to call
-     * @param value The amount of Ether to send
-     * @param data The data payload for the call
-     * @param operation  The type of call to perform
+     * @param txData call to perform
      */
     function executeTx(
         bytes calldata _proof,
-        address to,
-        uint256 value,
-        bytes calldata data,
-        Enum.Operation operation
+        Transaction.TransactionData calldata txData
     ) public payable notTrustedForwarder returns (bool success) {
         // Verifying the proof
         require(
-            verify(_proof, _useNonce(), TxHash, TxVerifier, msg.sender),
+            verify(
+                _proof,
+                Transaction.getTxHash(txData, _useNonce()),
+                TxHash,
+                TxVerifier,
+                address(0), // 0x0 as the verifying address
+                msg.sender
+            ),
             "Fusion: invalid proof"
         );
 
         // Execute the call
-        success = execute(to, value, data, operation, gasleft());
+        success = execute(
+            txData.to,
+            txData.value,
+            txData.data,
+            txData.operation,
+            gasleft()
+        );
     }
 
     /**
@@ -118,11 +126,18 @@ contract Fusion is
      */
     function executeBatchTx(
         bytes calldata _proof,
-        Transaction[] calldata transactions
+        Transaction.TransactionData[] calldata transactions
     ) public payable notTrustedForwarder {
         // Verifying the proof
         require(
-            verify(_proof, _useNonce(), TxHash, TxVerifier, msg.sender),
+            verify(
+                _proof,
+                Transaction.getTxBatchHash(transactions, _useNonce()),
+                TxHash,
+                TxVerifier,
+                address(0), // 0x0 as the verifying address
+                msg.sender
+            ),
             "Fusion: invalid proof"
         );
 
@@ -135,10 +150,7 @@ contract Fusion is
      * @dev The function is called by the trusted forwarder
      *      The function will revert if the proof is invalid or the execution fails
      * @param _proof The zk-SNARK proof
-     * @param to the address of the contract to call
-     * @param value The amount of Ether to send
-     * @param data The data payload for the call
-     * @param operation  The type of call to perform
+     * @param txData call to perform
      * @param token The address of the token to be used for fees
      * @param gasPrice The gas price for the transaction
      * @param baseGas The base gas for the transaction
@@ -146,10 +158,8 @@ contract Fusion is
      */
     function executeTxWithForwarder(
         bytes calldata _proof,
-        address to,
-        uint256 value,
-        bytes calldata data,
-        Enum.Operation operation,
+        Transaction.TransactionData calldata txData,
+        address from,
         address token,
         uint256 gasPrice,
         uint256 baseGas,
@@ -157,7 +167,14 @@ contract Fusion is
     ) public payable onlyTrustedForwarder {
         // Verifying the proof
         require(
-            verify(_proof, _useNonce(), TxHash, TxVerifier, tx.origin),
+            verify(
+                _proof,
+                Transaction.getTxHash(txData, _useNonce()),
+                TxHash,
+                TxVerifier,
+                from,
+                tx.origin
+            ),
             "Fusion: invalid proof"
         );
 
@@ -170,7 +187,13 @@ contract Fusion is
         uint256 startGas = gasleft();
 
         require(
-            execute(to, value, data, operation, gasleft()),
+            execute(
+                txData.to,
+                txData.value,
+                txData.data,
+                txData.operation,
+                gasleft()
+            ),
             "Fusion: execution failed"
         );
 
@@ -190,7 +213,8 @@ contract Fusion is
      */
     function executeBatchTxWithForwarder(
         bytes calldata _proof,
-        Transaction[] calldata transactions,
+        Transaction.TransactionData[] calldata transactions,
+        address from,
         address token,
         uint256 gasPrice,
         uint256 baseGas,
@@ -198,7 +222,14 @@ contract Fusion is
     ) public payable onlyTrustedForwarder {
         // Verifying the proof
         require(
-            verify(_proof, _useNonce(), TxHash, TxVerifier, tx.origin),
+            verify(
+                _proof,
+                Transaction.getTxBatchHash(transactions, _useNonce()),
+                TxHash,
+                TxVerifier,
+                from,
+                tx.origin
+            ),
             "Fusion: invalid proof"
         );
 
@@ -242,15 +273,26 @@ contract Fusion is
     }
 
     /**
-     * @notice Checks if the signature is valid
-     * @param _hash The hash to be signed
-     * @param _signature The signature to be verified
+     * @notice Verifies if the proof is valid or not
+     * @dev The parameters are named to maintain the same implementation as EIP-1271
+     *      Should return whether the proof provided is valid for the provided data
+     * @param _hash the message which is used to verify zero-knowledge proof
+     * @param _signature Noir based zero-knowledge proof
      */
     function isValidSignature(
         bytes32 _hash,
         bytes calldata _signature
     ) public view returns (bytes4 magicValue) {
-        if (verify(_signature, _hash, TxHash, TxVerifier, address(this))) {
+        if (
+            verify(
+                _signature,
+                _hash,
+                TxHash,
+                TxVerifier,
+                address(0),
+                address(this)
+            )
+        ) {
             return 0x1626ba7e;
         } else {
             return 0xffffffff;

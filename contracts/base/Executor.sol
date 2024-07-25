@@ -2,19 +2,13 @@
 pragma solidity >=0.7.0 <0.9.0;
 
 import {Enum} from "../libraries/Enum.sol";
+import {Transaction} from "../libraries/Transaction.sol";
 
 /**
  * @title Executor - A contract that can execute transactions
  * @author Anoy Roy Chowdhury - <anoy@valerium.id>
  */
 abstract contract Executor {
-    struct Transaction {
-        address to;
-        uint256 value;
-        bytes data;
-        Enum.Operation operation;
-    }
-
     /**
      * @notice Executes a call with provided parameters.
      * @dev This method doesn't perform any sanity check of the transaction, such as:
@@ -71,7 +65,7 @@ abstract contract Executor {
      * @param txGas Gas limit for each transaction.
      */
     function batchExecute(
-        Transaction[] memory transactions,
+        Transaction.TransactionData[] memory transactions,
         uint256 txGas
     ) internal {
         for (uint256 i = 0; i < transactions.length; i++) {
