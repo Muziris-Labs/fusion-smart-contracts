@@ -3,7 +3,7 @@ pragma solidity >=0.7.0 <0.9.0;
 
 import "./common/Singleton.sol";
 import "./common/StorageAccessible.sol";
-import "./base/Executor.sol";
+import "./base/ModuleManager.sol";
 import "./base/ProofManager.sol";
 import "./handler/TokenCallbackHandler.sol";
 import "./external/Fusion2771Context.sol";
@@ -15,9 +15,9 @@ import {Transaction} from "./libraries/Transaction.sol";
 /**
  * @title Fusion - A Smart Contract Wallet powered by ZK-SNARKs with support for Cross-Chain Transactions
  * @dev Most important concepts :
- *    - TxVerifier: Address of the Noir based ZK-SNARK verifier contract that will be used to verify proofs and execute transactions on the Valerium Wallet
+ *    - TxVerifier: Address of the Noir based ZK-SNARK verifier contract that will be used to verify proofs and execute transactions on the Fusion Wallet
  *    - Gas Tank: The gas tank is EOA or smart contract where the fees will be transferred
- *    - DOMAIN: The domain of the Valerium Wallet
+ *    - DOMAIN: The domain of the Fusion Wallet
  *    - TxHash: The hash used as a public inputs for the transaction verifier
  *    - nonce: The nonce of the Fusion Wallet
  * @author Anoy Roy Chowdhury - <anoy@valerium.id>
@@ -26,7 +26,7 @@ import {Transaction} from "./libraries/Transaction.sol";
 contract Fusion is
     Singleton,
     StorageAccessible,
-    Executor,
+    ModuleManager,
     ProofManager,
     TokenCallbackHandler,
     Fusion2771Context

@@ -6,12 +6,20 @@ import "../interfaces/ERC721TokenReceiver.sol";
 import "../interfaces/ERC777TokensRecipient.sol";
 import "../interfaces/IERC165.sol";
 
+/**
+ * @title Default Callback Handler - Handles supported tokens' callbacks, allowing Safes receiving these tokens.
+ * @author Anoy Roy Chowdhury - <anoy@valerum.id>
+ */
 contract TokenCallbackHandler is
     ERC1155TokenReceiver,
     ERC777TokensRecipient,
     ERC721TokenReceiver,
     IERC165
 {
+    /**
+     * @notice Handles ERC1155 Token callback.
+     * return Standardized onERC1155Received return value.
+     */
     function onERC1155Received(
         address,
         address,
@@ -22,6 +30,10 @@ contract TokenCallbackHandler is
         return 0xf23a6e61;
     }
 
+    /**
+     * @notice Handles ERC1155 Token batch callback.
+     * return Standardized onERC1155BatchReceived return value.
+     */
     function onERC1155BatchReceived(
         address,
         address,
@@ -32,6 +44,10 @@ contract TokenCallbackHandler is
         return 0xbc197c81;
     }
 
+    /**
+     * @notice Handles ERC721 Token callback.
+     *  return Standardized onERC721Received return value.
+     */
     function onERC721Received(
         address,
         address,
@@ -41,6 +57,10 @@ contract TokenCallbackHandler is
         return 0x150b7a02;
     }
 
+    /**
+     * @notice Handles ERC777 Token callback.
+     * return nothing (not standardized)
+     */
     function tokensReceived(
         address,
         address,
@@ -52,6 +72,11 @@ contract TokenCallbackHandler is
         // We implement this for completeness, doesn't really have any value
     }
 
+    /**
+     * @notice Implements ERC165 interface support for ERC1155TokenReceiver, ERC721TokenReceiver and IERC165.
+     * @param interfaceId Id of the interface.
+     * @return if the interface is supported.
+     */
     function supportsInterface(
         bytes4 interfaceId
     ) external view virtual override returns (bool) {

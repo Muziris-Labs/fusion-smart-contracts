@@ -1,18 +1,35 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 pragma solidity >=0.7.0 <0.9.0;
 
+/**
+ * @title IProxy - Helper interface to access the singleton address of the Proxy on-chain.
+ * @author Richard Meissner - <richard@gnosis.io>
+ */
 interface IProxy {
     function masterCopy() external view returns (address);
 }
 
+/**
+ * @title FusionProxy - Generic proxy contract allows to execute all transactions applying the code of a master contract.
+ * @author Stefan George - <stefan@gnosis.io>
+ * @author Richard Meissner - <richard@gnosis.io>
+ * @author Anoy Roy Chowdhury - <anoy@valerium.id>
+ */
 contract FusionProxy {
+    // Singleton always needs to be first declared variable, to ensure that it is at the same location in the contracts to which calls are delegated.
+    // To reduce deployment costs this variable is internal and needs to be retrieved via `getStorageAt`
     address internal singleton;
 
+    /**
+     * @dev sets the master copy address. Should be called right after construction.
+     * @param _singleton - address of the singleton contract
+     */
     function setupSingleton(address _singleton) external {
         require(singleton == address(0), "FusionProxy: singleton already set");
         singleton = _singleton;
     }
 
+    /// @dev Fallback function forwards all transactions and returns all received return data.
     fallback() external payable {
         // solhint-disable-next-line no-inline-assembly
         assembly {
