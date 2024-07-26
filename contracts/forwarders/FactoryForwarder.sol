@@ -5,21 +5,20 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "../external/Fusion2771Context.sol";
 import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import "@openzeppelin/contracts/utils/Nonces.sol";
-import "./FactoryLogManager.sol";
-import "./lib/ServerHandler.sol";
-import "./lib/TargetChecker.sol";
+import "./ServerHandler.sol";
+import "../interfaces/IFusionProxyFactory.sol";
+import "../libraries/Forwarder.sol";
 
-interface IFusionProxyFactory {
-    function createProxyWithDomain(
-        string memory domain,
-        bytes memory initializer
-    ) external;
-}
+/**
+ * @title Factory Forwarder - Handles the deployment of proxy contracts
+ * @author Anoy Roy Chowdhury - <anoy@valerium.id>
+ * @notice This contract is specifically designed to be used with the Fusion Factory Contract,
+ *         and some function may not work as expected if used with other contracts. To be used
+ *         to deploy Fusion Wallet through Fusion Factory Contract.
+ */
 
-contract FactoryForwarder is EIP712, Nonces, FactoryLogManager, ServerHandler {
+contract FactoryForwarder is EIP712, Nonces, ServerHandler {
     using ECDSA for bytes32;
-
-    event DeploymentResult(bytes4 result);
 
     // isBase is used to check if the contract is in base chain
     bool immutable isBase;
@@ -47,24 +46,14 @@ contract FactoryForwarder is EIP712, Nonces, FactoryLogManager, ServerHandler {
         _;
     }
 
-    struct ForwardDeployData {
-        address from;
-        address recipient;
-        uint48 deadline;
-        uint256 gas;
-        string domain;
-        bytes initializer;
-        bytes signature;
-    }
-
-    bytes32 internal constant FORWARD_DEPLOY_TYPEHASH =
-        keccak256(
-            "ForwardDeploy(address from,address recipient,uint48 deadline,uint256 nonce,uint256 gas,string domain,bytes initializer)"
-        );
-
+    /**
+     * @notice Deploys a proxy contract using the provided data
+     * @param serverProof The server proof
+     * @param request The forwarder request
+     */
     function execute(
         bytes calldata serverProof,
-        ForwardDeployData calldata request
+        Forwarder.ForwardDeployData calldata request
     )
         public
         payable
@@ -74,16 +63,19 @@ contract FactoryForwarder is EIP712, Nonces, FactoryLogManager, ServerHandler {
             bytes4(keccak256(abi.encodePacked(request.domain))),
             request.from
         )
-        returns (bytes4 magicValue)
     {
-        magicValue = _deploy(request, true);
-        emit DeploymentResult(magicValue);
+        _deploy(request, true);
     }
 
+    /**
+     * @notice Deploys a proxy contract using the provided data
+     * @param request  The deploy request
+     * @param requireValidRequest if true, the request must be valid
+     */
     function _deploy(
-        ForwardDeployData calldata request,
+        Forwarder.ForwardDeployData calldata request,
         bool requireValidRequest
-    ) internal virtual returns (bytes4 magicValue) {
+    ) internal virtual {
         (
             bool isTrustedForwarder,
             bool active,
@@ -93,15 +85,15 @@ contract FactoryForwarder is EIP712, Nonces, FactoryLogManager, ServerHandler {
 
         if (requireValidRequest) {
             if (!isTrustedForwarder) {
-                return UNTRUSTFUL_TARGET;
+                revert("FactoryForwarder: untrusted forwarder");
             }
 
             if (!active) {
-                return EXPIRED_REQUEST;
+                revert("FactoryForwarder: request expired");
             }
 
             if (!signerMatch) {
-                return INVALID_SIGNER;
+                revert("FactoryForwarder: invalid signer");
             }
         }
 
@@ -120,18 +112,24 @@ contract FactoryForwarder is EIP712, Nonces, FactoryLogManager, ServerHandler {
                 )
             );
 
-            _checkForwardedGas(gasleft(), request.gas);
+            Forwarder._checkForwardedGas(gasleft(), request.gas);
 
             if (!success) {
-                return DEPLOYMENT_FAILED;
+                revert("FactoryForwarder: deployment failed");
             }
-
-            return DEPLOYMENT_SUCCESSFUL;
         }
     }
 
+    /**
+     * @notice Validates the forwarder request
+     * @param request The deploy request
+     * @return isTrustedForwarder If the forwarder is trusted
+     * @return active If the request is active
+     * @return signerMatch If the signer matches
+     * @return signer The signer address
+     */
     function _validate(
-        ForwardDeployData calldata request
+        Forwarder.ForwardDeployData calldata request
     )
         internal
         view
@@ -146,42 +144,26 @@ contract FactoryForwarder is EIP712, Nonces, FactoryLogManager, ServerHandler {
         (bool isValid, address recovered) = _recoverForwardSigner(request);
 
         return (
-            TargetChecker._isTrustedByTarget(request.recipient),
+            Forwarder._isTrustedByTarget(request.recipient),
             request.deadline >= block.timestamp,
             isValid && recovered == request.from,
             recovered
         );
     }
 
+    /**
+     * @notice Recovers the signer of the forwarder request
+     * @param request  The deploy request
+     * @return  isValid If the signature is valid
+     * @return recovered The recovered signer
+     */
     function _recoverForwardSigner(
-        ForwardDeployData calldata request
+        Forwarder.ForwardDeployData calldata request
     ) internal view virtual returns (bool, address) {
         (address recovered, ECDSA.RecoverError err, ) = _hashTypedDataV4(
-            keccak256(
-                abi.encode(
-                    FORWARD_DEPLOY_TYPEHASH,
-                    request.from,
-                    request.recipient,
-                    request.deadline,
-                    nonces(request.from),
-                    request.gas,
-                    keccak256(bytes(request.domain)),
-                    keccak256(request.initializer)
-                )
-            )
+            Forwarder.hashDeploy(request)
         ).tryRecover(request.signature);
 
         return (err == ECDSA.RecoverError.NoError, recovered);
-    }
-
-    function _checkForwardedGas(
-        uint256 gasLeft,
-        uint256 requestGas
-    ) private pure {
-        if (gasLeft < requestGas / 63) {
-            assembly {
-                invalid()
-            }
-        }
     }
 }
