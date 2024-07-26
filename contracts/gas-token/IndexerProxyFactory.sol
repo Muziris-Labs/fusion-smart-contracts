@@ -69,17 +69,16 @@ contract IndexerProxyFactory {
         uint256 chainId,
         bytes memory initializer
     ) public returns (Proxy proxy) {
-        bytes32 salt = keccak256(abi.encodePacked(chainId, msg.sender));
+        bytes32 salt = keccak256(abi.encodePacked(chainId));
         proxy = deployProxy(initializer, salt);
 
         emit ProxyCreation(proxy, CurrentSingleton);
     }
 
     function getIndexerProxy(
-        uint256 chainId,
-        address deployer
+        uint256 chainId
     ) public view returns (address indexerProxy) {
-        bytes32 salt = keccak256(abi.encodePacked(chainId, deployer));
+        bytes32 salt = keccak256(abi.encodePacked(chainId));
         bytes memory deploymentData = abi.encodePacked(
             proxyCreationCode(),
             uint256(uint160(CurrentSingleton))

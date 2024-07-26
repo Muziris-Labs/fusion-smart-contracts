@@ -3,20 +3,16 @@ pragma solidity >=0.7.0 <0.9.0;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "../base/Verifier.sol";
-import "./ProofHandler.sol";
+import "../handler/ProofHandler.sol";
 import "../libraries/Conversion.sol";
+import "../interfaces/IIndexerProxyFactory.sol";
+import "../interfaces/IIndexer.sol";
 
-interface IIndexer {
-    function addTx(bytes32 _tx) external;
-
-    function getServerHash() external view returns (bytes32);
-}
-
-interface IProxyFactory {
-    function getFusionProxy(
-        string memory domain
-    ) external view returns (address);
-}
+/**
+ * @title GasToken - A token contract that allows users to buy and burn gas tokens.
+ * @author Anoy Roy Chowdhury - <anoy@valerium.id>
+ * @notice Allows users to buy and burn gas tokens using server proofs.
+ */
 
 contract GasToken is ERC20, Verifier, ProofHandler {
     event BuyTokens(
@@ -33,17 +29,23 @@ contract GasToken is ERC20, Verifier, ProofHandler {
         uint256 amount
     );
 
+    // Mapping of chainId to indexer address
     mapping(uint256 => address) public indexers;
 
+    // The address of the genesis
     address public GENESIS_ADDRESS;
 
+    // The address of the Fusion Proxy Factory
     address public FUSION_PROXY_FACTORY;
 
+    // The address of the BuyVerifier and BurnVerifier
     address public BuyVerifier;
     address public BurnVerifier;
 
-    constructor() ERC20("GasToken", "GAS") {
+    // Initializing the token with the name and symbol
+    constructor(address _fusionProxyFactory) ERC20("GasToken", "GAS") {
         GENESIS_ADDRESS = msg.sender;
+        FUSION_PROXY_FACTORY = _fusionProxyFactory;
     }
 
     modifier onlyGenesis() {
@@ -51,6 +53,11 @@ contract GasToken is ERC20, Verifier, ProofHandler {
         _;
     }
 
+    /**
+     * @notice Adds an indexer to the contract
+     * @param _chainId  The chain id of the chain to index
+     * @param _indexer The address of the indexer
+     */
     function addIndexer(
         uint256 _chainId,
         address _indexer
@@ -62,10 +69,11 @@ contract GasToken is ERC20, Verifier, ProofHandler {
         indexers[_chainId] = _indexer;
     }
 
-    function setFusionProxyFactory(address _factory) external onlyGenesis {
-        FUSION_PROXY_FACTORY = _factory;
-    }
-
+    /**
+     * @notice Sets the BuyVerifier and BurnVerifier
+     * @param _buyVerifier The address of the BuyVerifier
+     * @param _burnVerifier The address of the BurnVerifier
+     */
     function setVerifiers(
         address _buyVerifier,
         address _burnVerifier
@@ -74,6 +82,14 @@ contract GasToken is ERC20, Verifier, ProofHandler {
         BurnVerifier = _burnVerifier;
     }
 
+    /**
+     * @notice Buys gas tokens and indexes the transaction
+     * @param proof The server proof
+     * @param domain The domain of the request
+     * @param chainId The chain id of the chain to index
+     * @param txHash The hash of the transaction
+     * @param amount The amount of tokens to buy
+     */
     function BuyAndIndex(
         bytes calldata proof,
         string memory domain,
@@ -118,6 +134,14 @@ contract GasToken is ERC20, Verifier, ProofHandler {
         emit BuyTokens(domain, chainId, txHash, amount);
     }
 
+    /**
+     * @notice Burns gas tokens and indexes the transaction
+     * @param proof The server proof
+     * @param domain The domain of the request
+     * @param chainId The chain id of the chain to index
+     * @param txHash The hash of the transaction
+     * @param estimatedGas The amount of tokens to burn
+     */
     function withdrawFees(
         bytes calldata proof,
         string memory domain,
