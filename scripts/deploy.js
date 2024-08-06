@@ -11,9 +11,13 @@ async function main() {
 
   console.log("Deploying contracts with the account:", deployer.address);
 
-  const contract = await hre.ethers.deployContract("FusionVault", ["0"], {
-    gasLimit: 10000000,
-  });
+  const contract = await hre.ethers.deployContract(
+    "FusionForwarder",
+    ["Fusion Forwarder", "1"],
+    {
+      gasLimit: 10000000,
+    }
+  );
 
   console.log("Contract address:", await contract.getAddress());
 }

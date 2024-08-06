@@ -6,13 +6,16 @@ import "./IProxyCreationCallback.sol";
 import "../external/Fusion2771Context.sol";
 import "../base/Verifier.sol";
 import "../libraries/Conversion.sol";
+import "../interfaces/IFusion.sol";
+import "../external/WormholeManager.sol";
+import "../libraries/Conversion.sol";
 
 /**
  * @title Fusion Proxy Factory - Allows to create a new proxy contract and execute a message call to the new proxy within one transaction.
  * @author Anoy Roy Chowdhury - <anoy@valerium.id>
  */
 
-contract FusionProxyFactory is Fusion2771Context {
+contract FusionProxyFactory is Fusion2771Context, WormholeManager, Verifier {
     event ProxyCreation(FusionProxy indexed proxy, address singleton);
 
     event SingletonUpdated(address singleton);
@@ -23,21 +26,37 @@ contract FusionProxyFactory is Fusion2771Context {
     // The address of the current singleton contract used as the master copy for proxy contracts.
     address private CurrentSingleton;
 
-    // Is the contract deployed on the base chain.
-    bool public immutable IsBaseChain;
+    // The address of the base fusion proxy factory contract.
+    address private baseProxyFactory;
 
-    // The constructor sets the initial singleton contract address and the GenesisAddress.
-    constructor(address CurrentSingleton_, bool _isBaseChain) {
-        CurrentSingleton = CurrentSingleton_;
+    // The base chain id.
+    uint256 private baseChainId;
+
+    // The constructor sets the initial singleton contract address, the GenesisAddress, baseProxyFactory, wormholeRelayer and baseChainId.
+    constructor(
+        address CurrentSingleton_,
+        address _baseProxyFactory,
+        uint256 baseChainId_,
+        address wormholeRelayer
+    ) WormholeManager(wormholeRelayer) {
         GenesisAddress = msg.sender;
-        IsBaseChain = _isBaseChain;
+        CurrentSingleton = CurrentSingleton_;
+        baseProxyFactory = _baseProxyFactory;
+        baseChainId = baseChainId_;
+    }
+
+    /**
+     * @notice Returns if the contract is deployed on the base chain.
+     */
+    function IsBaseChain() public view returns (bool) {
+        return baseChainId == getChainId();
     }
 
     /**
      * @notice  Modifier to restrict the execution of a function to the base chain. If the contract is not deployed on the base chain, the function can only be called by the trusted forwarder.
      */
     modifier checkBase() {
-        if (!IsBaseChain) {
+        if (!IsBaseChain()) {
             require(
                 msg.sender == trustedForwarder(),
                 "Only the trusted forwarder can call this function"
@@ -47,10 +66,18 @@ contract FusionProxyFactory is Fusion2771Context {
     }
 
     /**
+     * @notice  Modifier to restrict the execution of a function to the base chain.
+     */
+    modifier onlyBase() {
+        require(IsBaseChain(), "Only the base chain can call this function");
+        _;
+    }
+
+    /**
      * @notice  Modifier to restrict the execution of a function to the non-base chain.
      */
     modifier notBase() {
-        require(!IsBaseChain, "Cannot call this function on the base chain");
+        require(!IsBaseChain(), "Cannot call this function on the base chain");
         _;
     }
 
@@ -175,6 +202,59 @@ contract FusionProxyFactory is Fusion2771Context {
     }
 
     /**
+     * @notice Deploys a new proxy with the current singleton on the child chain through Wormhole. Optionally executes an initializer call to a new proxy.
+     * @param proof The proof to verify the message.
+     * @param domain The domain name of the new proxy contract.
+     * @param initializer Payload for a message call to be sent to a new proxy contract.
+     * @param targetChain The chain id of the target chain.
+     * @param targetAddress The address of the target contract.
+     */
+    function createProxyWithWormhole(
+        bytes calldata proof,
+        string memory domain,
+        bytes memory initializer,
+        uint16 targetChain,
+        address targetAddress,
+        uint256 gasLimit
+    ) external payable onlyBase {
+        require(
+            domainExists(domain),
+            "FusionProxyFactory: Domain does not exist"
+        );
+
+        {
+            IFusion fusion = IFusion(getFusionProxy(domain));
+            bytes32 txHash = fusion.TxHash();
+            address txVerifier = fusion.TxVerifier();
+
+            require(
+                verify(
+                    proof,
+                    domain,
+                    initializer,
+                    targetChain,
+                    targetAddress,
+                    address(this),
+                    msg.sender,
+                    txHash,
+                    txVerifier
+                ),
+                "FusionProxyFactory: Invalid proof"
+            );
+        }
+
+        sendCrossChainDeployment(
+            uint16(targetChain),
+            targetAddress,
+            domain,
+            initializer,
+            uint16(getChainId()),
+            GenesisAddress,
+            gasLimit
+        );
+    }
+
+    /**
      * @notice Retrieves the FusionProxy contract address for a given domain.
      * @param domain Domain name.
      * @return fusionProxy FusionProxy contract address.
@@ -219,6 +299,104 @@ contract FusionProxyFactory is Fusion2771Context {
     }
 
     /**
+     * @notice Verifies the proof.
+     * @param proof The proof to verify the message.
+     * @param domain  The domain name of the new proxy contract.
+     * @param intializer  Payload for a message call to be sent to a new proxy contract.
+     * @param targetChain  The chain id of the target chain.
+     * @param targetAddress  The address of the target contract.
+     * @param _verifyingAddress  The address of the contract verifying the proof.
+     * @param _signingAddress The address of the contract signing the message.
+     * @param txHash The hash of the transaction.
+     * @param txVerifier The address of the verifier contract.
+     */
+    function verify(
+        bytes calldata proof,
+        string memory domain,
+        bytes memory intializer,
+        uint16 targetChain,
+        address targetAddress,
+        address _verifyingAddress,
+        address _signingAddress,
+        bytes32 txHash,
+        address txVerifier
+    ) internal view returns (bool) {
+        bytes32 messageHash = getDeployHash(
+            domain,
+            intializer,
+            targetChain,
+            targetAddress
+        );
+
+        bytes32[] memory publicInputs = Conversion.convertToInputs(
+            messageHash,
+            txHash,
+            _verifyingAddress,
+            _signingAddress
+        );
+        return verifyProof(proof, publicInputs, txVerifier);
+    }
+
+    /**
+     * @notice Receives messages from the base Proxy Factory through Wormhole.
+     * @param payload  The payload of the message.
+     * @param sourceAddress  The address of the source contract.
+     * @param sourceChain  The chain id of the source chain.
+     */
+    function receiveWormholeMessages(
+        bytes memory payload,
+        bytes[] memory, // additionalVaas
+        bytes32 sourceAddress,
+        uint16 sourceChain,
+        bytes32 // delivery hash
+    ) public payable override onlyWormholeRelayer notBase {
+        require(
+            sourceChain == baseChainId,
+            "FusionProxyFactory: Invalid source chain"
+        );
+
+        require(
+            address(uint160(uint256(sourceAddress))) == baseProxyFactory,
+            "FusionProxyFactory: Invalid source address"
+        );
+
+        require(payload.length > 0, "FusionProxyFactory: Invalid payload");
+
+        (string memory domain, bytes memory initializer) = abi.decode(
+            payload,
+            (string, bytes)
+        );
+
+        FusionProxy proxy = _createProxyWithDomain(domain, initializer);
+
+        emit ProxyCreation(proxy, CurrentSingleton);
+    }
+
+    /**
+     * @notice Returns the hash of the message to be signed.
+     * @param domain  The domain name of the new proxy contract.
+     * @param initializer  Payload for a message call to be sent to a new proxy contract.
+     * @param targetChain  The chain id of the target chain.
+     * @param targetAddress  The address of the target contract.
+     */
+    function getDeployHash(
+        string memory domain,
+        bytes memory initializer,
+        uint16 targetChain,
+        address targetAddress
+    ) internal pure returns (bytes32) {
+        return
+            keccak256(
+                abi.encodePacked(
+                    domain,
+                    initializer,
+                    targetChain,
+                    targetAddress
+                )
+            );
+    }
+
+    /**
      * @notice Returns true if `account` is a contract.
      * @dev This function will return false if invoked during the constructor of a contract,
      *      as the code is not actually created until after the constructor finishes.
@@ -256,5 +434,17 @@ contract FusionProxyFactory is Fusion2771Context {
             "Only the Genesis Address can transfer ownership"
         );
         GenesisAddress = newGenesis;
+    }
+
+    /**
+     * @notice Returns the chain id
+     */
+    function getChainId() public view returns (uint256) {
+        uint256 id;
+        // solhint-disable-next-line no-inline-assembly
+        assembly {
+            id := chainid()
+        }
+        return id;
     }
 }

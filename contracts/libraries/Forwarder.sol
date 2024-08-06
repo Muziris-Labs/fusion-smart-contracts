@@ -95,7 +95,7 @@ library Forwarder {
                     TRANSACTION_TYPEHASH,
                     _tx.to,
                     _tx.value,
-                    _tx.data,
+                    keccak256(_tx.data),
                     uint8(_tx.operation)
                 )
             );
@@ -116,7 +116,7 @@ library Forwarder {
                     _data.recipient,
                     _data.deadline,
                     _data.gas,
-                    _data.proof,
+                    keccak256(_data.proof),
                     hashTransaction(_data.txData)
                 )
             );

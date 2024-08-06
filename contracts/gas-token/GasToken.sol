@@ -179,6 +179,16 @@ contract GasToken is ERC20, Verifier, ProofHandler {
         emit BurnTokens(domain, chainId, txHash, estimatedGas);
     }
 
+    /**
+     * @notice Verifies the server proof
+     * @param _proof The proof to be verified
+     * @param _serverHash The hash of the server
+     * @param _domain The domain of the request
+     * @param chainId The chain id of the chain to index
+     * @param _txHash The hash of the transaction
+     * @param _amount The amount of tokens to buy
+     * @param _verifier The address of the verifier
+     */
     function _verify(
         bytes calldata _proof,
         bytes32 _serverHash,
