@@ -39,8 +39,7 @@ contract GasToken is ERC20, Verifier, ProofHandler {
     address public FUSION_PROXY_FACTORY;
 
     // The address of the BuyVerifier and BurnVerifier
-    address public BuyVerifier;
-    address public BurnVerifier;
+    address public CreditVerifier;
 
     // Initializing the token with the name and symbol
     constructor(address _fusionProxyFactory) ERC20("GasToken", "GAS") {
@@ -70,16 +69,11 @@ contract GasToken is ERC20, Verifier, ProofHandler {
     }
 
     /**
-     * @notice Sets the BuyVerifier and BurnVerifier
-     * @param _buyVerifier The address of the BuyVerifier
-     * @param _burnVerifier The address of the BurnVerifier
+     *  @notice Sets the credit verifier
+     * @param _creditVerifier The address of the credit verifier
      */
-    function setVerifiers(
-        address _buyVerifier,
-        address _burnVerifier
-    ) external onlyGenesis {
-        BuyVerifier = _buyVerifier;
-        BurnVerifier = _burnVerifier;
+    function setVerifiers(address _creditVerifier) external onlyGenesis {
+        CreditVerifier = _creditVerifier;
     }
 
     /**
@@ -121,7 +115,9 @@ contract GasToken is ERC20, Verifier, ProofHandler {
                     chainId,
                     txHash,
                     amount,
-                    BuyVerifier
+                    0,
+                    msg.sender,
+                    CreditVerifier
                 ),
                 "GAS Token: Invalid proof"
             );
@@ -169,7 +165,9 @@ contract GasToken is ERC20, Verifier, ProofHandler {
                 chainId,
                 txHash,
                 estimatedGas,
-                BuyVerifier
+                1,
+                msg.sender,
+                CreditVerifier
             ),
             "GAS Token: Invalid proof"
         );
@@ -196,6 +194,8 @@ contract GasToken is ERC20, Verifier, ProofHandler {
         uint256 chainId,
         bytes32 _txHash,
         uint256 _amount,
+        uint256 tx_type,
+        address _signingAddress,
         address _verifier
     ) internal returns (bool) {
         bytes32[] memory publicInputs;
@@ -207,7 +207,7 @@ contract GasToken is ERC20, Verifier, ProofHandler {
 
         // Use scope here to limit variable lifetime and prevent `stack too deep` errors
         {
-            publicInputs = new bytes32[](36);
+            publicInputs = new bytes32[](38);
             publicInputs[0] = _serverHash;
             publicInputs[1] = bytes32(uint256(uint32(_domain)));
             publicInputs[2] = bytes32(chainId);
@@ -217,6 +217,8 @@ contract GasToken is ERC20, Verifier, ProofHandler {
                 );
             }
             publicInputs[35] = bytes32(_amount);
+            publicInputs[36] = bytes32(tx_type);
+            publicInputs[37] = bytes32(uint256(uint160(_signingAddress)));
         }
 
         return verifyProof(_proof, publicInputs, _verifier);
