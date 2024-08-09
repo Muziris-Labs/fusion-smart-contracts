@@ -35,16 +35,12 @@ contract GasToken is ERC20, Verifier, ProofHandler {
     // The address of the genesis
     address public GENESIS_ADDRESS;
 
-    // The address of the Fusion Proxy Factory
-    address public FUSION_PROXY_FACTORY;
-
     // The address of the BuyVerifier and BurnVerifier
     address public CreditVerifier;
 
     // Initializing the token with the name and symbol
-    constructor(address _fusionProxyFactory) ERC20("GasToken", "GAS") {
+    constructor() ERC20("GasToken", "GAS") {
         GENESIS_ADDRESS = msg.sender;
-        FUSION_PROXY_FACTORY = _fusionProxyFactory;
     }
 
     modifier onlyGenesis() {
@@ -87,6 +83,7 @@ contract GasToken is ERC20, Verifier, ProofHandler {
     function BuyAndIndex(
         bytes calldata proof,
         string memory domain,
+        address fusionAddress,
         uint256 chainId,
         bytes32 txHash,
         uint256 amount
@@ -97,14 +94,6 @@ contract GasToken is ERC20, Verifier, ProofHandler {
         );
 
         {
-            address fusionProxy = IProxyFactory(FUSION_PROXY_FACTORY)
-                .getFusionProxy(domain);
-
-            require(
-                fusionProxy != address(0),
-                "GAS Token: Fusion proxy not found"
-            );
-
             bytes32 serverHash = IIndexer(indexers[chainId]).getServerHash();
 
             require(
@@ -124,7 +113,7 @@ contract GasToken is ERC20, Verifier, ProofHandler {
 
             IIndexer(indexers[chainId]).addTx(txHash);
 
-            _mint(fusionProxy, amount);
+            _mint(fusionAddress, amount);
         }
 
         emit BuyTokens(domain, chainId, txHash, amount);
@@ -141,17 +130,13 @@ contract GasToken is ERC20, Verifier, ProofHandler {
     function withdrawFees(
         bytes calldata proof,
         string memory domain,
+        address fusionAddress,
         uint256 chainId,
         bytes32 txHash,
         uint256 estimatedGas
     ) external {
-        address fusionProxy = IProxyFactory(FUSION_PROXY_FACTORY)
-            .getFusionProxy(domain);
-
-        require(fusionProxy != address(0), "GAS Token: Fusion proxy not found");
-
         require(
-            balanceOf(fusionProxy) >= estimatedGas,
+            balanceOf(fusionAddress) >= estimatedGas,
             "GAS Token: Insufficient balance"
         );
 
@@ -172,7 +157,7 @@ contract GasToken is ERC20, Verifier, ProofHandler {
             "GAS Token: Invalid proof"
         );
 
-        _burn(fusionProxy, estimatedGas);
+        _burn(fusionAddress, estimatedGas);
 
         emit BurnTokens(domain, chainId, txHash, estimatedGas);
     }
