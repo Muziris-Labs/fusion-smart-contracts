@@ -32,24 +32,29 @@ contract FusionProxyFactory is Fusion2771Context, WormholeManager, Verifier {
     // The base chain id.
     uint256 private baseChainId;
 
+    // The current chain id.
+    uint256 private currentChainId;
+
     // The constructor sets the initial singleton contract address, the GenesisAddress, baseProxyFactory, wormholeRelayer and baseChainId.
     constructor(
         address CurrentSingleton_,
         address _baseProxyFactory,
         uint256 baseChainId_,
-        address wormholeRelayer
+        address wormholeRelayer,
+        uint256 currentChainId_
     ) WormholeManager(wormholeRelayer) {
         GenesisAddress = msg.sender;
         CurrentSingleton = CurrentSingleton_;
         baseProxyFactory = _baseProxyFactory;
         baseChainId = baseChainId_;
+        currentChainId = currentChainId_;
     }
 
     /**
      * @notice Returns if the contract is deployed on the base chain.
      */
     function IsBaseChain() public view returns (bool) {
-        return baseChainId == getChainId();
+        return baseChainId == currentChainId;
     }
 
     /**
@@ -248,7 +253,7 @@ contract FusionProxyFactory is Fusion2771Context, WormholeManager, Verifier {
             targetAddress,
             domain,
             initializer,
-            uint16(getChainId()),
+            uint16(currentChainId),
             GenesisAddress,
             gasLimit
         );
@@ -434,17 +439,5 @@ contract FusionProxyFactory is Fusion2771Context, WormholeManager, Verifier {
             "Only the Genesis Address can transfer ownership"
         );
         GenesisAddress = newGenesis;
-    }
-
-    /**
-     * @notice Returns the chain id
-     */
-    function getChainId() public view returns (uint256) {
-        uint256 id;
-        // solhint-disable-next-line no-inline-assembly
-        assembly {
-            id := chainid()
-        }
-        return id;
     }
 }

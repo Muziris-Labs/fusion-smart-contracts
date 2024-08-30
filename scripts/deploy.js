@@ -12,8 +12,14 @@ async function main() {
   console.log("Deploying contracts with the account:", deployer.address);
 
   const contract = await hre.ethers.deployContract(
-    "FusionForwarder",
-    ["Fusion Forwarder", "1"],
+    "FusionProxyFactory",
+    [
+      "0x40C92d2E370b3d3944fDd90c922a407F02D286d1",
+      "0x3411eE3ACc6eC027bff5C60D5463f1f0BB9C5f2e",
+      "10005",
+      "0x93BAD53DDfB6132b0aC8E37f6029163E63372cEE",
+      "10004",
+    ],
     {
       gasLimit: 10000000,
     }

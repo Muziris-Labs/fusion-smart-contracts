@@ -43,7 +43,7 @@ module.exports = {
       accounts: [PRIVATE_KEY],
     },
     baseSepolia: {
-      url: `https://base-sepolia-rpc.publicnode.com`,
+      url: `https://sepolia.base.org`,
       accounts: [PRIVATE_KEY],
     },
     modeSepolia: {
