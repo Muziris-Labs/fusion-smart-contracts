@@ -7,7 +7,7 @@ import "../external/Fusion2771Context.sol";
 import "../base/Verifier.sol";
 import "../libraries/Conversion.sol";
 import "../interfaces/IFusion.sol";
-import "../external/WormholeManager.sol";
+import "../cross-chain/WormholeManager.sol";
 import "../libraries/Conversion.sol";
 
 /**
@@ -15,7 +15,7 @@ import "../libraries/Conversion.sol";
  * @author Anoy Roy Chowdhury - <anoy@valerium.id>
  */
 
-contract FusionProxyFactory is Fusion2771Context, WormholeManager, Verifier {
+contract FusionProxyFactory is WormholeManager, Verifier {
     event ProxyCreation(FusionProxy indexed proxy, address singleton);
 
     event SingletonUpdated(address singleton);
@@ -55,19 +55,6 @@ contract FusionProxyFactory is Fusion2771Context, WormholeManager, Verifier {
      */
     function IsBaseChain() public view returns (bool) {
         return baseChainId == currentChainId;
-    }
-
-    /**
-     * @notice  Modifier to restrict the execution of a function to the base chain. If the contract is not deployed on the base chain, the function can only be called by the trusted forwarder.
-     */
-    modifier checkBase() {
-        if (!IsBaseChain()) {
-            require(
-                msg.sender == trustedForwarder(),
-                "Only the trusted forwarder can call this function"
-            );
-        }
-        _;
     }
 
     /**
@@ -165,7 +152,7 @@ contract FusionProxyFactory is Fusion2771Context, WormholeManager, Verifier {
     function createProxyWithDomain(
         string memory domain,
         bytes memory initializer
-    ) public checkBase returns (FusionProxy proxy) {
+    ) public onlyBase returns (FusionProxy proxy) {
         proxy = _createProxyWithDomain(domain, initializer);
     }
 
@@ -186,24 +173,6 @@ contract FusionProxyFactory is Fusion2771Context, WormholeManager, Verifier {
         proxy = deployProxy(initializer, salt);
 
         emit ProxyCreation(proxy, CurrentSingleton);
-    }
-
-    /**
-     * @notice Deploy a new proxy with `_singleton` singleton
-     *         Optionally executes an initializer call to a new proxy and calls a specified callback address `callback`.
-     * @param domain The domain name of the new proxy contract.
-     * @param initializer Payload for a message call to be sent to a new proxy contract.
-     * @param callback Callback that will be invoked after the new proxy contract has been successfully deployed and initialized.
-     * @dev The domain name is used to calculate the salt for the CREATE2 call.
-     */
-    function createProxyWithCallback(
-        string memory domain,
-        bytes memory initializer,
-        IProxyCreationCallback callback
-    ) public checkBase returns (FusionProxy proxy) {
-        proxy = _createProxyWithDomain(domain, initializer);
-        if (address(callback) != address(0))
-            callback.proxyCreated(proxy, CurrentSingleton, initializer);
     }
 
     /**
@@ -415,18 +384,6 @@ contract FusionProxyFactory is Fusion2771Context, WormholeManager, Verifier {
             size := extcodesize(account)
         }
         return size > 0;
-    }
-
-    /**
-     * @notice Allows the Genesis Address to setup the forwarder.
-     * @param forwarder Address of the forwarder contract.
-     */
-    function setupForwarder(address forwarder) public {
-        require(
-            msg.sender == GenesisAddress,
-            "Only the Genesis Address can setup the forwarder"
-        );
-        setupTrustedForwarder(forwarder);
     }
 
     /**

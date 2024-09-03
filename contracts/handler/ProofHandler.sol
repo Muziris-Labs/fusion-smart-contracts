@@ -4,6 +4,7 @@ pragma solidity >=0.7.0 <0.9.0;
 /**
  * @title ProofHandler - A generic base contract that allows callers to add and check proofs.
  * @notice Proofs are added to a linked list and checked for duplicates. Only to be used for verifying server proofs.
+ * @dev Currently, the contract is not used for any specific purpose.
  * @author Anoy Roy Chowdhury - <anoy@valerium.id>
  */
 
