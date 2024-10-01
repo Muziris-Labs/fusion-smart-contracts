@@ -21,10 +21,32 @@ abstract contract ModuleManager is SelfAuthorized, Executor {
     mapping(address => address) internal modules;
 
     /**
-     * @notice Initializes the linked list with the sentinel value.
+     * @notice Setup function sets the initial storage of the contract.
+     *         Optionally executes a delegate call to another contract to setup the modules.
+     * @param to Optional destination address of call to execute.
+     * @param data Optional data of call to execute.
      */
-    constructor() {
+    function setupModules(address to, bytes memory data) internal {
+        require(
+            modules[SENTINEL_MODULES] == address(0),
+            "Modules already initialized"
+        );
+
         modules[SENTINEL_MODULES] = SENTINEL_MODULES;
+        if (to != address(0)) {
+            require(isContract(to), "Invalid Module");
+            // Setup has to complete successfully or transaction fails.
+            require(
+                execute(
+                    to,
+                    0,
+                    data,
+                    Enum.Operation.DelegateCall,
+                    type(uint256).max
+                ),
+                "Module setup failed"
+            );
+        }
     }
 
     /**
@@ -128,5 +150,22 @@ abstract contract ModuleManager is SelfAuthorized, Executor {
      */
     function isModuleEnabled(address module) public view returns (bool) {
         return SENTINEL_MODULES != module && modules[module] != address(0);
+    }
+
+    /**
+     * @notice Returns true if `account` is a contract.
+     * @dev This function will return false if invoked during the constructor of a contract,
+     *      as the code is not actually created until after the constructor finishes.
+     * @param account The address being queried
+     */
+    function isContract(address account) internal view returns (bool) {
+        uint256 size;
+        /* solhint-disable no-inline-assembly */
+        /// @solidity memory-safe-assembly
+        assembly {
+            size := extcodesize(account)
+        }
+        /* solhint-enable no-inline-assembly */
+        return size > 0;
     }
 }

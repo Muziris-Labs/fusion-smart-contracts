@@ -3,6 +3,7 @@ pragma solidity >=0.7.0 <0.9.0;
 
 import "./TeamManager.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "../common/GenesisManager.sol";
 
 /**
  * @title Fusion Vault - This contract is used to manage the vault for the Fusion wallet.
@@ -10,7 +11,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @author Anoy Roy Chowdhury - <anoy@valerium.id>
  */
 
-contract FusionVault is TeamManager {
+contract FusionVault is TeamManager, GenesisManager {
     event DepositReceived(
         address indexed token,
         address indexed sender,
@@ -24,9 +25,6 @@ contract FusionVault is TeamManager {
     );
     event WithdrawAllGenesis(address indexed token);
 
-    // The address of the account that initially created the vault contract.
-    address private GenesisAddress;
-
     // The maximum withdrawal amount allowed in the vault by members.
     uint256 private maxWithdrawAmount = 0;
 
@@ -37,7 +35,6 @@ contract FusionVault is TeamManager {
      * @notice Initializes the contract with the address of the genesis account and maxDeposit.
      */
     constructor(uint256 _maxWithdrawAmount) {
-        GenesisAddress = msg.sender;
         maxWithdrawAmount = _maxWithdrawAmount;
         snapshotTime = block.timestamp;
     }
@@ -65,8 +62,7 @@ contract FusionVault is TeamManager {
      * @param token The address of the token to be withdrawn.
      * @param _amount The amount to be withdrawn.
      */
-    function withdraw(address token, uint256 _amount) external {
-        require(msg.sender == GenesisAddress, "Unauthorized access");
+    function withdraw(address token, uint256 _amount) external onlyGenesis {
         if (token == address(0)) {
             payable(msg.sender).transfer(_amount);
         } else {
@@ -82,8 +78,7 @@ contract FusionVault is TeamManager {
      * @notice Withdraws all the tokens from the vault to the genesis address.
      * @param token The address of the token to be withdrawn.
      */
-    function withdrawAll(address token) external {
-        require(msg.sender == GenesisAddress, "Unauthorized access");
+    function withdrawAll(address token) external onlyGenesis {
         if (token == address(0)) {
             payable(msg.sender).transfer(address(this).balance);
         } else {
@@ -99,8 +94,7 @@ contract FusionVault is TeamManager {
      * @notice Adds a team member to the vault.
      * @param member The address of the member to be added.
      */
-    function addTeamMember(address member) external {
-        require(msg.sender == GenesisAddress, "Unauthorized access");
+    function addTeamMember(address member) external onlyGenesis {
         addMember(member);
     }
 
@@ -109,8 +103,10 @@ contract FusionVault is TeamManager {
      * @param prevMember The address of the previous member.
      * @param member The address of the member to be removed.
      */
-    function removeTeamMember(address prevMember, address member) external {
-        require(msg.sender == GenesisAddress, "Unauthorized access");
+    function removeTeamMember(
+        address prevMember,
+        address member
+    ) external onlyGenesis {
         removeMember(prevMember, member);
     }
 
@@ -137,29 +133,17 @@ contract FusionVault is TeamManager {
     /**
      * @notice Updates the snapshot time of the vault.
      */
-    function updateSnapshotTime() external {
-        require(
-            msg.sender == GenesisAddress || isMember(msg.sender),
-            "Unauthorized access"
-        );
+    function updateSnapshotTime() external onlyGenesis {
         snapshotTime = block.timestamp;
-    }
-
-    /**
-     * @notice Transfers the ownership of the vault to a new genesis address.
-     * @param newGenesis The address of the new genesis address.
-     */
-    function transferGenesis(address newGenesis) external {
-        require(msg.sender == GenesisAddress, "Unauthorized access");
-        GenesisAddress = newGenesis;
     }
 
     /**
      * @notice Changes the maximum withdrawal amount allowed in the vault by members.
      * @param _maxWithdrawAmount The new maximum withdrawal amount.
      */
-    function changeMaxWithdrawAmount(uint256 _maxWithdrawAmount) external {
-        require(msg.sender == GenesisAddress, "Unauthorized access");
+    function changeMaxWithdrawAmount(
+        uint256 _maxWithdrawAmount
+    ) external onlyGenesis {
         maxWithdrawAmount = _maxWithdrawAmount;
     }
 }

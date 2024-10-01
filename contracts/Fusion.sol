@@ -33,9 +33,6 @@ contract Fusion is
 {
     string public constant VERSION = "1.0.0";
 
-    // The domain of the Fusion Wallet
-    bytes32 public DOMAIN;
-
     // The address of the Noir based ZK-SNARK verifier contract
     address public TxVerifier;
 
@@ -49,7 +46,6 @@ contract Fusion is
     uint256 private nonce;
 
     event SetupFusion(
-        bytes32 domain,
         address txVerifier,
         address forwarder,
         address gasTank,
@@ -60,30 +56,26 @@ contract Fusion is
      * @notice Initializes the Fusion Wallet
      * @dev The function is called only once during deployment
      *      If the proxy was created without setting up, anyone can call setup and claim the proxy
-     * @param _domain  The domain of the Fusion Wallet
      * @param _txVerifier The address of the Noir based ZK-SNARK verifier contract
      * @param _forwarder The address of the trusted forwarder
      * @param _gasTank The address of the gas tank contract or EOA
      * @param _txHash The hash used as a public inputs for verifiers
      */
     function setupFusion(
-        bytes32 _domain,
         address _txVerifier,
         address _forwarder,
         address _gasTank,
         bytes32 _txHash
     ) external {
-        require(DOMAIN == bytes32(0), "Fusion: already initialized");
         require(TxVerifier == address(0), "Fusion: already initialized");
         require(GasTank == address(0), "Fusion: already initialized");
 
         setupTrustedForwarder(_forwarder);
-        DOMAIN = _domain;
         TxVerifier = _txVerifier;
         GasTank = _gasTank;
         TxHash = _txHash;
 
-        emit SetupFusion(_domain, _txVerifier, _forwarder, _gasTank, _txHash);
+        emit SetupFusion(_txVerifier, _forwarder, _gasTank, _txHash);
     }
 
     /**
@@ -99,7 +91,7 @@ contract Fusion is
         require(
             verify(
                 _proof,
-                Transaction.getTxHash(txData, _useNonce()),
+                Transaction.getTxHash(txData, _useNonce(), getChainId()),
                 TxHash,
                 TxVerifier,
                 address(0), // 0x0 as the verifying address
@@ -132,7 +124,11 @@ contract Fusion is
         require(
             verify(
                 _proof,
-                Transaction.getTxBatchHash(transactions, _useNonce()),
+                Transaction.getTxBatchHash(
+                    transactions,
+                    _useNonce(),
+                    getChainId()
+                ),
                 TxHash,
                 TxVerifier,
                 address(0), // 0x0 as the verifying address
@@ -169,7 +165,7 @@ contract Fusion is
         require(
             verify(
                 _proof,
-                Transaction.getTxHash(txData, _useNonce()),
+                Transaction.getTxHash(txData, _useNonce(), getChainId()),
                 TxHash,
                 TxVerifier,
                 from,
@@ -224,7 +220,11 @@ contract Fusion is
         require(
             verify(
                 _proof,
-                Transaction.getTxBatchHash(transactions, _useNonce()),
+                Transaction.getTxBatchHash(
+                    transactions,
+                    _useNonce(),
+                    getChainId()
+                ),
                 TxHash,
                 TxVerifier,
                 from,
@@ -312,6 +312,15 @@ contract Fusion is
     function _useNonce() internal returns (uint256) {
         unchecked {
             return nonce++;
+        }
+    }
+
+    /**
+     * @notice Gets the chain ID of the current network
+     */
+    function getChainId() internal view returns (uint256 chainId) {
+        assembly {
+            chainId := chainid()
         }
     }
 }

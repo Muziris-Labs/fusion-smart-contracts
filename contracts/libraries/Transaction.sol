@@ -19,10 +19,12 @@ library Transaction {
      * @notice Encode the transaction data with nonce
      * @param _tx  The transaction data
      * @param _nonce The nonce of the Fusion Wallet
+     * @param _chainId The chain id of the network
      */
     function encodeWithNonce(
         TransactionData memory _tx,
-        uint256 _nonce
+        uint256 _nonce,
+        uint256 _chainId
     ) internal pure returns (bytes memory) {
         return
             abi.encode(
@@ -30,31 +32,41 @@ library Transaction {
                 _tx.value,
                 _tx.data,
                 uint8(_tx.operation),
-                _nonce
+                _nonce,
+                _chainId
             );
     }
 
+    /**
+     * @notice Get the hash of a transaction
+     * @param _tx  The transaction data
+     * @param _nonce  The nonce of the Fusion Wallet
+     * @param _chainId  The chain id of the network
+     */
     function getTxHash(
         TransactionData memory _tx,
-        uint256 _nonce
+        uint256 _nonce,
+        uint256 _chainId
     ) internal pure returns (bytes32) {
-        return keccak256(encodeWithNonce(_tx, _nonce));
+        return keccak256(encodeWithNonce(_tx, _nonce, _chainId));
     }
 
     /**
      * @notice Get the hash of a batch of transactions
      * @param _txs All the transactions in the batch
      * @param _nonce The nonce of the Fusion Wallet
+     * @param _chainId The chain id of the network
      */
     function getTxBatchHash(
         TransactionData[] memory _txs,
-        uint256 _nonce
+        uint256 _nonce,
+        uint256 _chainId
     ) internal pure returns (bytes32) {
         bytes memory txsData;
         for (uint256 i = 0; i < _txs.length; i++) {
             txsData = abi.encodePacked(
                 txsData,
-                encodeWithNonce(_txs[i], _nonce)
+                encodeWithNonce(_txs[i], _nonce, _chainId)
             );
         }
         return keccak256(txsData);
