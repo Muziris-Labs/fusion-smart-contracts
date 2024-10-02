@@ -171,6 +171,13 @@ contract FusionProxyFactory is GenesisManager, Verifier, FusionAddressRegistry {
         return size > 0;
     }
 
+    /**
+     * @notice Returns the initializer for the Fusion contract.
+     * @param _txVerifier  The address of the TxVerifier contract.
+     * @param _forwarder The address of the FusionForwarder contract.
+     * @param _gasTank The address of the GasTank.
+     * @param _txHash The common public input for proof verification.
+     */
     function getInitializer(
         address _txVerifier,
         address _forwarder,

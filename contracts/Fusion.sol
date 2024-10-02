@@ -16,8 +16,7 @@ import {Transaction} from "./libraries/Transaction.sol";
  * @title Fusion - A Smart Contract Wallet powered by ZK-SNARKs with support for Cross-Chain Transactions
  * @dev Most important concepts :
  *    - TxVerifier: Address of the Noir based ZK-SNARK verifier contract that will be used to verify proofs and execute transactions on the Fusion Wallet
- *    - Gas Tank: The gas tank is EOA or smart contract where the fees will be transferred
- *    - DOMAIN: The domain of the Fusion Wallet
+ *    - Gas Tank: The gas tank is an EOA or a smart contract where the fees will be transferred
  *    - TxHash: The hash used as a public inputs for the transaction verifier
  *    - nonce: The nonce of the Fusion Wallet
  * @author Anoy Roy Chowdhury - <anoy@valerium.id>

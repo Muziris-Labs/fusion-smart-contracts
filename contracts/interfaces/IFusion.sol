@@ -4,6 +4,11 @@ pragma solidity >=0.7.0 <0.9.0;
 import {Enum} from "../libraries/Enum.sol";
 import {Transaction} from "../libraries/Transaction.sol";
 
+/**
+ * @title IFusion - Fusion Wallet Interface
+ * @author Anoy Roy Chowdhury - <anoyroyc3545@gmail.com>
+ */
+
 interface IFusion {
     event SetupFusion(
         address txVerifier,
