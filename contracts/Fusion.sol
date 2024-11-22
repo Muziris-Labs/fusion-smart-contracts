@@ -90,7 +90,14 @@ contract Fusion is
         require(
             verify(
                 _proof,
-                Transaction.getTxHash(txData, _useNonce(), getChainId()),
+                Transaction.getTxHash(
+                    txData,
+                    _useNonce(),
+                    getChainId(),
+                    address(0),
+                    0,
+                    0
+                ),
                 TxHash,
                 TxVerifier,
                 address(0), // 0x0 as the verifying address
@@ -126,7 +133,10 @@ contract Fusion is
                 Transaction.getTxBatchHash(
                     transactions,
                     _useNonce(),
-                    getChainId()
+                    getChainId(),
+                    address(0),
+                    0,
+                    0
                 ),
                 TxHash,
                 TxVerifier,
@@ -164,7 +174,14 @@ contract Fusion is
         require(
             verify(
                 _proof,
-                Transaction.getTxHash(txData, _useNonce(), getChainId()),
+                Transaction.getTxHash(
+                    txData,
+                    _useNonce(),
+                    getChainId(),
+                    token,
+                    gasPrice,
+                    baseGas
+                ),
                 TxHash,
                 TxVerifier,
                 from,
@@ -222,7 +239,10 @@ contract Fusion is
                 Transaction.getTxBatchHash(
                     transactions,
                     _useNonce(),
-                    getChainId()
+                    getChainId(),
+                    token,
+                    gasPrice,
+                    baseGas
                 ),
                 TxHash,
                 TxVerifier,

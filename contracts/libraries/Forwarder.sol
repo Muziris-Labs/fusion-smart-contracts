@@ -11,21 +11,6 @@ import {Transaction} from "./Transaction.sol";
 import "../external/Fusion2771Context.sol";
 
 library Forwarder {
-    struct ForwardDeployData {
-        address from;
-        address recipient;
-        uint48 deadline;
-        uint256 gas;
-        string domain;
-        bytes initializer;
-        bytes signature;
-    }
-
-    bytes32 internal constant FORWARD_DEPLOY_TYPEHASH =
-        keccak256(
-            "ForwardDeploy(address from,address recipient,uint48 deadline,uint256 nonce,uint256 gas,string domain,bytes initializer)"
-        );
-
     struct ForwardExecuteData {
         address from;
         address recipient;
@@ -60,27 +45,6 @@ library Forwarder {
         keccak256(
             "ForwardExecuteBatch(address from,address recipient,uint256 deadline,uint256 gas,bytes proof,Transaction[] txDatas)Transaction(address to,uint256 value,bytes data,uint8 operation)"
         );
-
-    /**
-     * @notice Hashes the forward deploy data
-     * @param _data The forward deploy data
-     */
-    function hashDeploy(
-        ForwardDeployData memory _data
-    ) internal pure returns (bytes32) {
-        return
-            keccak256(
-                abi.encode(
-                    FORWARD_DEPLOY_TYPEHASH,
-                    _data.from,
-                    _data.recipient,
-                    _data.deadline,
-                    _data.gas,
-                    _data.domain,
-                    keccak256(_data.initializer)
-                )
-            );
-    }
 
     /**
      * @notice Hashes the transaction data

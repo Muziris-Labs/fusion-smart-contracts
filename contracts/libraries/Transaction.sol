@@ -20,11 +20,17 @@ library Transaction {
      * @param _tx  The transaction data
      * @param _nonce The nonce of the Fusion Wallet
      * @param _chainId The chain id of the network
+     * @param _token The token address
+     * @param _gasPrice The gas price
+     * @param _baseGas The base gas
      */
     function encodeWithNonce(
         TransactionData memory _tx,
         uint256 _nonce,
-        uint256 _chainId
+        uint256 _chainId,
+        address _token,
+        uint256 _gasPrice,
+        uint256 _baseGas
     ) internal pure returns (bytes memory) {
         return
             abi.encode(
@@ -33,7 +39,10 @@ library Transaction {
                 _tx.data,
                 uint8(_tx.operation),
                 _nonce,
-                _chainId
+                _chainId,
+                _token,
+                _gasPrice,
+                _baseGas
             );
     }
 
@@ -42,13 +51,29 @@ library Transaction {
      * @param _tx  The transaction data
      * @param _nonce  The nonce of the Fusion Wallet
      * @param _chainId  The chain id of the network
+     * @param _token The token address
+     * @param _gasPrice The gas price
+     * @param _baseGas The base gas
      */
     function getTxHash(
         TransactionData memory _tx,
         uint256 _nonce,
-        uint256 _chainId
+        uint256 _chainId,
+        address _token,
+        uint256 _gasPrice,
+        uint256 _baseGas
     ) internal pure returns (bytes32) {
-        return keccak256(encodeWithNonce(_tx, _nonce, _chainId));
+        return
+            keccak256(
+                encodeWithNonce(
+                    _tx,
+                    _nonce,
+                    _chainId,
+                    _token,
+                    _gasPrice,
+                    _baseGas
+                )
+            );
     }
 
     /**
@@ -56,17 +81,30 @@ library Transaction {
      * @param _txs All the transactions in the batch
      * @param _nonce The nonce of the Fusion Wallet
      * @param _chainId The chain id of the network
+     * @param _token The token address
+     * @param _gasPrice The gas price
+     * @param _baseGas The base gas
      */
     function getTxBatchHash(
         TransactionData[] memory _txs,
         uint256 _nonce,
-        uint256 _chainId
+        uint256 _chainId,
+        address _token,
+        uint256 _gasPrice,
+        uint256 _baseGas
     ) internal pure returns (bytes32) {
         bytes memory txsData;
         for (uint256 i = 0; i < _txs.length; i++) {
             txsData = abi.encodePacked(
                 txsData,
-                encodeWithNonce(_txs[i], _nonce, _chainId)
+                encodeWithNonce(
+                    _txs[i],
+                    _nonce,
+                    _chainId,
+                    _token,
+                    _gasPrice,
+                    _baseGas
+                )
             );
         }
         return keccak256(txsData);
