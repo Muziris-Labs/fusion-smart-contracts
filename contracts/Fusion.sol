@@ -51,6 +51,15 @@ contract Fusion is
         bytes32 txHash
     );
 
+    // This constructor ensures that this contract can only be used as a singleton for Proxy contracts
+    constructor() {
+        /**
+         * By setting the TxHash to bytes32(uint256(1)), it is not possible to call setupFusion anymore,
+         * This is an unusable Fusion Wallet, and it is only used to deploy the proxy contract
+         */
+        TxHash = bytes32(uint256(1));
+    }
+
     /**
      * @notice Initializes the Fusion Wallet
      * @dev The function is called only once during deployment
