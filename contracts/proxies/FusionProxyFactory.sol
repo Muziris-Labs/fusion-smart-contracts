@@ -15,7 +15,7 @@ import "./FusionAddressRegistry.sol";
  * @author Anoy Roy Chowdhury - <anoy@valerium.id>
  */
 
-contract FusionProxyFactory is GenesisManager, Verifier, FusionAddressRegistry {
+contract FusionProxyFactory is GenesisManager, FusionAddressRegistry {
     event ProxyCreation(FusionProxy indexed proxy, address singleton);
 
     event SingletonUpdated(address singleton);
@@ -37,11 +37,15 @@ contract FusionProxyFactory is GenesisManager, Verifier, FusionAddressRegistry {
      * @notice Internal method to create a new proxy contract using CREATE2.
      * @param TxHash The common public input for proof verification.
      * @param salt Create2 salt to use for calculating the address of the new proxy contract.
+     * @param to Contract address for optional delegate call.
+     * @param data Data payload for optional delegate call.
      * @return proxy Address of the new proxy contract.
      */
     function deployProxy(
         bytes32 TxHash,
-        bytes32 salt
+        bytes32 salt,
+        address to,
+        bytes calldata data
     ) internal returns (FusionProxy proxy) {
         require(
             isContract(CurrentSingleton),
@@ -68,7 +72,9 @@ contract FusionProxyFactory is GenesisManager, Verifier, FusionAddressRegistry {
             TxVerifier,
             FusionForwarder,
             GasTank,
-            TxHash
+            TxHash,
+            to,
+            data
         );
 
         // solhint-disable-next-line no-inline-assembly
@@ -103,26 +109,34 @@ contract FusionProxyFactory is GenesisManager, Verifier, FusionAddressRegistry {
     /**
      * @notice Deploys a new proxy with the current singleton.
      * @param TxHash The common public input for proof verification.
+     * @param to Contract address for optional delegate call.
+     * @param data Data payload for optional delegate call.
      */
     function createProxyWithTxHash(
-        bytes32 TxHash
+        bytes32 TxHash,
+        address to,
+        bytes calldata data
     ) public returns (FusionProxy proxy) {
-        proxy = _createProxyWithTxHash(TxHash);
+        proxy = _createProxyWithTxHash(TxHash, to, data);
     }
 
     /**
      * @notice Deploys a new proxy with `_singleton` singleton.
      * @param _txHash The common public input for proof verification.
+     * @param to Contract address for optional delegate call.
+     * @param data Data payload for optional delegate call.
      * @dev The domain name is used to calculate the salt for the CREATE2 call.
      */
     function _createProxyWithTxHash(
-        bytes32 _txHash
+        bytes32 _txHash,
+        address to,
+        bytes calldata data
     ) internal returns (FusionProxy proxy) {
         // If the domain changes the proxy address should change too.
         bytes32 salt = keccak256(
             abi.encodePacked(keccak256(abi.encodePacked(_txHash)))
         );
-        proxy = deployProxy(_txHash, salt);
+        proxy = deployProxy(_txHash, salt, to, data);
 
         emit ProxyCreation(proxy, CurrentSingleton);
     }
@@ -177,12 +191,16 @@ contract FusionProxyFactory is GenesisManager, Verifier, FusionAddressRegistry {
      * @param _forwarder The address of the FusionForwarder contract.
      * @param _gasTank The address of the GasTank.
      * @param _txHash The common public input for proof verification.
+     * @param _to Contract address for optional delegate call.
+     * @param _data Data payload for optional delegate call.
      */
     function getInitializer(
         address _txVerifier,
         address _forwarder,
         address _gasTank,
-        bytes32 _txHash
+        bytes32 _txHash,
+        address _to,
+        bytes calldata _data
     ) internal pure returns (bytes memory) {
         return
             abi.encodeWithSelector(
@@ -190,7 +208,9 @@ contract FusionProxyFactory is GenesisManager, Verifier, FusionAddressRegistry {
                 _txVerifier,
                 _forwarder,
                 _gasTank,
-                _txHash
+                _txHash,
+                _to,
+                _data
             );
     }
 

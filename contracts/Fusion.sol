@@ -59,12 +59,16 @@ contract Fusion is
      * @param _forwarder The address of the trusted forwarder
      * @param _gasTank The address of the gas tank contract or EOA
      * @param _txHash The hash used as a public inputs for verifiers
+     * @param to The destination address of the call to execute
+     * @param data The data of the call to
      */
     function setupFusion(
         address _txVerifier,
         address _forwarder,
         address _gasTank,
-        bytes32 _txHash
+        bytes32 _txHash,
+        address to,
+        bytes calldata data
     ) external {
         require(TxVerifier == address(0), "Fusion: already initialized");
         require(GasTank == address(0), "Fusion: already initialized");
@@ -73,6 +77,8 @@ contract Fusion is
         TxVerifier = _txVerifier;
         GasTank = _gasTank;
         TxHash = _txHash;
+
+        setupModules(to, data);
 
         emit SetupFusion(_txVerifier, _forwarder, _gasTank, _txHash);
     }

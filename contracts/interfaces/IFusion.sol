@@ -29,7 +29,9 @@ interface IFusion {
         address _txVerifier,
         address _forwarder,
         address _gasTank,
-        bytes32 _txHash
+        bytes32 _txHash,
+        address to,
+        bytes calldata data
     ) external;
 
     function executeTx(
