@@ -58,13 +58,21 @@ abstract contract Fusion2771Context is Context {
 
         if (token != address(0)) {
             uint8 decimals = IERC20Metadata(token).decimals();
+            uint256 transferAmount = gasFee / 10 ** (18 - decimals);
 
-            bool success = IERC20(token).transfer(
-                GasTank,
-                gasFee / 10 ** (18 - decimals)
+            // Low-level call with additional check for tokens without return value
+            (bool success, bytes memory data) = token.call(
+                abi.encodeWithSelector(
+                    IERC20.transfer.selector,
+                    GasTank,
+                    transferAmount
+                )
             );
 
-            if (!success) {
+            bool transferSucceeded = success &&
+                (data.length == 0 || abi.decode(data, (bool)));
+
+            if (!transferSucceeded) {
                 revert("Fusion: fee transfer failed");
             }
         } else {
