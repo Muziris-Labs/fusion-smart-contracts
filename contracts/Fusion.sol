@@ -3,12 +3,14 @@ pragma solidity >=0.7.0 <0.9.0;
 
 import "./common/Singleton.sol";
 import "./common/StorageAccessible.sol";
+import "./common/NativeCurrencyPaymentFallback.sol";
 import "./base/ModuleManager.sol";
 import "./base/ProofManager.sol";
 import "./handler/TokenCallbackHandler.sol";
 import "./external/Fusion2771Context.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/interfaces/IERC20Metadata.sol";
+import "./common/NativeCurrencyPaymentFallback.sol";
 import {Enum} from "./libraries/Enum.sol";
 import {Transaction} from "./libraries/Transaction.sol";
 
@@ -28,6 +30,7 @@ contract Fusion is
     ModuleManager,
     ProofManager,
     TokenCallbackHandler,
+    NativeCurrencyPaymentFallback,
     Fusion2771Context
 {
     string public constant VERSION = "1.0.0";

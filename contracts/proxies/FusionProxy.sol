@@ -21,11 +21,11 @@ contract FusionProxy {
     address internal singleton;
 
     /**
-     * @dev sets the master copy address. Should be called right after construction.
-     * @param _singleton - address of the singleton contract
+     * @notice Constructor function sets address of singleton contract.
+     * @param _singleton Singleton address.
      */
-    function setupSingleton(address _singleton) external {
-        require(singleton == address(0), "FusionProxy: singleton already set");
+    constructor(address _singleton) {
+        require(_singleton != address(0), "Invalid singleton address provided");
         singleton = _singleton;
     }
 
@@ -61,6 +61,4 @@ contract FusionProxy {
             return(0, returndatasize())
         }
     }
-
-    receive() external payable {}
 }

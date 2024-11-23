@@ -53,7 +53,8 @@ contract FusionProxyFactory is GenesisManager, FusionAddressRegistry {
         );
 
         bytes memory deploymentData = abi.encodePacked(
-            type(FusionProxy).creationCode
+            type(FusionProxy).creationCode,
+            uint256(uint160(CurrentSingleton))
         );
         // solhint-disable-next-line no-inline-assembly
         assembly {
@@ -65,8 +66,6 @@ contract FusionProxyFactory is GenesisManager, FusionAddressRegistry {
             )
         }
         require(address(proxy) != address(0), "Create2 call failed");
-
-        proxy.setupSingleton(CurrentSingleton);
 
         bytes memory initializer = getInitializer(
             TxVerifier,
@@ -139,34 +138,6 @@ contract FusionProxyFactory is GenesisManager, FusionAddressRegistry {
         proxy = deployProxy(_txHash, salt, to, data);
 
         emit ProxyCreation(proxy, CurrentSingleton);
-    }
-
-    /**
-     * @notice Retrieves the FusionProxy contract address for a given domain.
-     * @param TxHash The common public input for proof verification.
-     */
-    function getFusionProxy(
-        bytes32 TxHash
-    ) public view returns (address fusionProxy) {
-        bytes32 salt = keccak256(
-            abi.encodePacked(keccak256(abi.encodePacked(TxHash)))
-        );
-        bytes memory deploymentData = abi.encodePacked(proxyCreationCode());
-
-        // Calculate the address of the proxy contract using CREATE2
-        bytes32 hash = keccak256(
-            abi.encodePacked(
-                bytes1(0xff),
-                address(this),
-                salt,
-                keccak256(deploymentData)
-            )
-        );
-
-        // Cast the hash to an address
-        address fusion = address(uint160(uint256(hash)));
-
-        return fusion;
     }
 
     /**
