@@ -7,26 +7,14 @@ import "../base/Verifier.sol";
 import "../libraries/Conversion.sol";
 import "../interfaces/IFusion.sol";
 import "../libraries/Conversion.sol";
-import "../common/GenesisManager.sol";
-import "./FusionAddressRegistry.sol";
 
 /**
  * @title Fusion Proxy Factory - Allows to create a new proxy contract and execute a message call to the new proxy within one transaction.
  * @author Anoy Roy Chowdhury - <anoy@valerium.id>
  */
 
-contract FusionProxyFactory is GenesisManager, FusionAddressRegistry {
+contract FusionProxyFactory {
     event ProxyCreation(FusionProxy indexed proxy, address singleton);
-
-    event SingletonUpdated(address singleton);
-
-    // The address of the current singleton contract used as the master copy for proxy contracts.
-    address private CurrentSingleton;
-
-    // The constructor sets the GenesisAddress and the current singleton contract.
-    constructor(address CurrentSingleton_) {
-        CurrentSingleton = CurrentSingleton_;
-    }
 
     /// @dev Allows to retrieve the creation code used for the Proxy deployment. With this it is easily possible to calculate predicted address.
     function proxyCreationCode() public pure returns (bytes memory) {
@@ -35,6 +23,11 @@ contract FusionProxyFactory is GenesisManager, FusionAddressRegistry {
 
     /**
      * @notice Internal method to create a new proxy contract using CREATE2.
+     * @param Singleton Address of the singleton contract.
+     * @param TxHash The common public input for proof verification.
+     * @param TxVerifier Address of the TxVerifier contract.
+     * @param FusionForwarder Address of the FusionForwarder contract.
+     * @param GasTank Address of the GasTank contract.
      * @param TxHash The common public input for proof verification.
      * @param salt Create2 salt to use for calculating the address of the new proxy contract.
      * @param to Contract address for optional delegate call.
@@ -42,19 +35,20 @@ contract FusionProxyFactory is GenesisManager, FusionAddressRegistry {
      * @return proxy Address of the new proxy contract.
      */
     function deployProxy(
+        address Singleton,
         bytes32 TxHash,
+        address TxVerifier,
+        address FusionForwarder,
+        address GasTank,
         bytes32 salt,
         address to,
         bytes calldata data
     ) internal returns (FusionProxy proxy) {
-        require(
-            isContract(CurrentSingleton),
-            "Singleton contract not deployed"
-        );
+        require(isContract(Singleton), "Singleton contract not deployed");
 
         bytes memory deploymentData = abi.encodePacked(
             type(FusionProxy).creationCode,
-            uint256(uint160(CurrentSingleton))
+            uint256(uint160(Singleton))
         );
         // solhint-disable-next-line no-inline-assembly
         assembly {
@@ -96,38 +90,51 @@ contract FusionProxyFactory is GenesisManager, FusionAddressRegistry {
     }
 
     /**
-     * @notice Updates the address of the current singleton contract used as the master copy for proxy contracts.
-     * @dev Only the Genesis Address can update the Singleton.
-     * @param _singleton Address of the current singleton contract.
-     */
-    function updateSingleton(address _singleton) external onlyGenesis {
-        CurrentSingleton = _singleton;
-        emit SingletonUpdated(_singleton);
-    }
-
-    /**
      * @notice Deploys a new proxy with the current singleton.
+     * @param Singleton Address of the singleton contract.
      * @param TxHash The common public input for proof verification.
+     * @param RegistryData Data payload for the registry.
      * @param to Contract address for optional delegate call.
      * @param data Data payload for optional delegate call.
      */
     function createProxyWithTxHash(
+        address Singleton,
         bytes32 TxHash,
+        bytes calldata RegistryData,
         address to,
         bytes calldata data
     ) public returns (FusionProxy proxy) {
-        proxy = _createProxyWithTxHash(TxHash, to, data);
+        (address _txVerifier, address _forwarder, address _gasTank) = abi
+            .decode(RegistryData, (address, address, address));
+
+        proxy = _createProxyWithTxHash(
+            Singleton,
+            TxHash,
+            _txVerifier,
+            _forwarder,
+            _gasTank,
+            to,
+            data
+        );
     }
 
     /**
      * @notice Deploys a new proxy with `_singleton` singleton.
+     * @param _singleton Address of the singleton contract.
      * @param _txHash The common public input for proof verification.
+     * @param _txVerifier Address of the TxVerifier contract.
+     * @param _forwarder Address of the FusionForwarder contract.
+     * @param _gasTank Address of the GasTank contract.
      * @param to Contract address for optional delegate call.
      * @param data Data payload for optional delegate call.
      * @dev The domain name is used to calculate the salt for the CREATE2 call.
      */
     function _createProxyWithTxHash(
+        address _singleton,
         bytes32 _txHash,
+        address _txVerifier,
+        address _forwarder,
+        address _gasTank,
         address to,
         bytes calldata data
     ) internal returns (FusionProxy proxy) {
@@ -135,9 +142,18 @@ contract FusionProxyFactory is GenesisManager, FusionAddressRegistry {
         bytes32 salt = keccak256(
             abi.encodePacked(keccak256(abi.encodePacked(_txHash)))
         );
-        proxy = deployProxy(_txHash, salt, to, data);
+        proxy = deployProxy(
+            _singleton,
+            _txHash,
+            _txVerifier,
+            _forwarder,
+            _gasTank,
+            salt,
+            to,
+            data
+        );
 
-        emit ProxyCreation(proxy, CurrentSingleton);
+        emit ProxyCreation(proxy, _singleton);
     }
 
     /**
@@ -183,31 +199,5 @@ contract FusionProxyFactory is GenesisManager, FusionAddressRegistry {
                 _to,
                 _data
             );
-    }
-
-    /**
-     * @notice Setup function sets the initial Registry of the contract.
-     * @param _txVerifier  The address of the TxVerifier contract.
-     * @param _forwarder The address of the FusionForwarder contract.
-     * @param _gasTank  The address of the GasTank.
-     */
-    function setupRegistry(
-        address _txVerifier,
-        address _forwarder,
-        address _gasTank
-    ) external onlyGenesis {
-        _setupRegistry(_txVerifier, _forwarder, _gasTank);
-    }
-
-    /**
-     * @notice Update the address in the Fusion Registry.
-     * @param selector The Address to be updated.
-     * @param newAddress The new address.
-     */
-    function updateRegistry(
-        Selector selector,
-        address newAddress
-    ) external onlyGenesis {
-        _updateRegistry(selector, newAddress);
     }
 }
