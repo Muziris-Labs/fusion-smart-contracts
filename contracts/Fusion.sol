@@ -84,6 +84,7 @@ contract Fusion is
     ) external {
         require(TxVerifier == address(0), "Fusion: already initialized");
         require(GasTank == address(0), "Fusion: already initialized");
+        require(TxHash == bytes32(uint256(0)), "Fusion: already initialized");
 
         setupTrustedForwarder(_forwarder);
         TxVerifier = _txVerifier;
