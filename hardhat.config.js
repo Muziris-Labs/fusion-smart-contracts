@@ -1,5 +1,6 @@
 require("@nomicfoundation/hardhat-toolbox");
 require("dotenv").config();
+require("@tenderly/hardhat-tenderly");
 
 const PRIVATE_KEY = process.env.PRIVATE_KEY;
 
@@ -28,6 +29,7 @@ module.exports = {
     },
     opSepolia: {
       url: `https://sepolia.optimism.io/`,
+      chainId: 11155420,
       accounts: [PRIVATE_KEY],
     },
     optimism: {

@@ -2,11 +2,13 @@
 pragma solidity >=0.7.0 <0.9.0;
 
 /**
- * @title OpenBatchExecutor - Allows to execute a batch of transactions in a single transaction.
+ * @title OpenBatchExecutorNoFailure - Execute a batch of transactions in a single transaction without reverting on failure
  * @author Anoy Roy Chowdhury - <anoy@valerium.id>
  */
 
-contract OpenBatchExecutor {
+contract OpenBatchExecutorNoFailure {
+    event TransactionResult(uint256 index, address to, bool success);
+
     struct Transaction {
         address to;
         uint256 value;
@@ -17,10 +19,15 @@ contract OpenBatchExecutor {
      * @notice Executes a batch of transactions in a single transaction.
      * @param transactions The transactions to execute. The array must not be empty.
      */
-    function executeBatch(Transaction[] memory transactions) public payable {
-        uint256 totalValue = 0;
+    function executeBatch(
+        Transaction[] memory transactions
+    ) public payable returns (bool[] memory results) {
+        require(transactions.length > 0, "No transactions provided");
 
-        for (uint i = 0; i < transactions.length; i++) {
+        uint256 totalValue = 0;
+        results = new bool[](transactions.length); // Array to store the results
+
+        for (uint256 i = 0; i < transactions.length; i++) {
             Transaction memory txn = transactions[i];
             totalValue += txn.value;
 
@@ -29,8 +36,13 @@ contract OpenBatchExecutor {
                 "Insufficient balance for transaction"
             );
 
+            // Attempt to execute the transaction
             (bool success, ) = txn.to.call{value: txn.value}(txn.data);
-            require(success, "Transaction failed");
+
+            // Store the result
+            results[i] = success;
+
+            emit TransactionResult(i, txn.to, success);
         }
 
         require(
@@ -38,7 +50,7 @@ contract OpenBatchExecutor {
             "Insufficient ETH sent for all transactions"
         );
 
-        // Return any excess ETH
+        // Return any excess ETH to the sender
         uint256 remainingBalance = address(this).balance;
         if (remainingBalance > 0) {
             payable(msg.sender).transfer(remainingBalance);

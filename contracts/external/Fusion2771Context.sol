@@ -2,27 +2,15 @@
 
 pragma solidity >=0.7.0 <0.9.0;
 
-import {Context} from "./Context.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 /**
- * @dev Context variant with ERC-2771 support. This version of the context is used to support the Valerium Wallet.
+ * @dev Context variant with ERC-2771 support. This version of the context is used to support the Fusion Wallet.
  * @author Anoy Roy Chowdhury - <anoy@valerium.id>
- *
- * WARNING: Avoid using this pattern in contracts that rely in a specific calldata length as they'll
- * be affected by any forwarder whose `msg.data` is suffixed with the `from` address according to the ERC-2771
- * specification adding the address size in bytes (20) to the calldata size. An example of an unexpected
- * behavior could be an unintended fallback (or another function) invocation while trying to invoke the `receive`
- * function only accessible if `msg.data.length == 0`.
- *
- * WARNING: The usage of `delegatecall` in this contract is dangerous and may result in context corruption.
- * Any forwarded request to this contract triggering a `delegatecall` to itself will result in an invalid {_msgSender}
- * recovery.
  */
 
-abstract contract Fusion2771Context is Context {
-    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+abstract contract Fusion2771Context {
     address private _trustedForwarder;
 
     /**

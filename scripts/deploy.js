@@ -12,8 +12,7 @@ async function main() {
   console.log("Deploying contracts with the account:", deployer.address);
 
   const contract = await hre.ethers.deployContract(
-    "FusionProxyFactory",
-    ["0x7845A4285d925aa076698a79B6ED125419b09BA8"],
+    "OpenBatchExecutorNoFailure",
     {
       gasLimit: 10000000,
     }

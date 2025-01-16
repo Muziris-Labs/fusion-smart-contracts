@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "../external/Fusion2771Context.sol";
 import "../libraries/Forwarder.sol";
 import "../interfaces/IFusion.sol";
+import {Quote} from "../libraries/Quote.sol";
 
 /**
  * @title Execute Handler - Handles the execution of transactions and batch transactions on Fusion Wallet
@@ -26,18 +27,12 @@ abstract contract ExecuteHandler is EIP712, Nonces {
     /**
      * @notice Executes a transaction using the provided data
      * @param request The forwarder request
-     * @param token The token address
-     * @param gasPrice The gas price
-     * @param baseGas The base gas
-     * @param estimatedFees The estimated fees
+     * @param quote The gas quote
      * @param requireValidRequest If the request should be validated
      */
     function _execute(
         Forwarder.ForwardExecuteData calldata request,
-        address token,
-        uint256 gasPrice,
-        uint256 baseGas,
-        uint256 estimatedFees,
+        Quote.GasQuote calldata quote,
         bool requireValidRequest
     ) internal virtual {
         {
@@ -70,13 +65,7 @@ abstract contract ExecuteHandler is EIP712, Nonces {
         }
 
         // Encode the parameters for optimized gas usage
-        bytes memory encodedParams = encodeExecuteParams(
-            request,
-            token,
-            gasPrice,
-            baseGas,
-            estimatedFees
-        );
+        bytes memory encodedParams = encodeExecuteParams(request, quote);
 
         (bool success, ) = request.recipient.call{gas: request.gas}(
             encodedParams
@@ -92,18 +81,12 @@ abstract contract ExecuteHandler is EIP712, Nonces {
     /**
      * @notice Executes a batch of transactions using the provided data
      * @param request The ExecuteBatch request
-     * @param token The token address
-     * @param gasPrice The gas price
-     * @param baseGas The base gas
-     * @param estimatedFees The estimated fees
+     * @param quote The gas quote
      * @param requireValidRequest If the request should be validated
      */
     function _executeBatch(
         Forwarder.ForwardExecuteBatchData calldata request,
-        address token,
-        uint256 gasPrice,
-        uint256 baseGas,
-        uint256 estimatedFees,
+        Quote.GasQuote calldata quote,
         bool requireValidRequest
     ) internal virtual {
         (
@@ -133,13 +116,7 @@ abstract contract ExecuteHandler is EIP712, Nonces {
 
         _useNonce(signer);
 
-        bytes memory encodedParams = encodeExecuteBatchParams(
-            request,
-            token,
-            gasPrice,
-            baseGas,
-            estimatedFees
-        );
+        bytes memory encodedParams = encodeExecuteBatchParams(request, quote);
 
         (bool success, ) = request.recipient.call{gas: request.gas}(
             encodedParams
@@ -155,18 +132,12 @@ abstract contract ExecuteHandler is EIP712, Nonces {
     /**
      * @notice Encodes the parameters for the execute function
      * @param request The forwarder request
-     * @param token The token address
-     * @param gasPrice The gas price
-     * @param baseGas The base gas
-     * @param estimatedFees The estimated fees
+     * @param quote The gas quote
      * @return encodedParams The encoded parameters
      */
     function encodeExecuteParams(
         Forwarder.ForwardExecuteData calldata request,
-        address token,
-        uint256 gasPrice,
-        uint256 baseGas,
-        uint256 estimatedFees
+        Quote.GasQuote calldata quote
     ) internal pure returns (bytes memory) {
         bytes4 functionSignature = IFusion.executeTxWithForwarder.selector;
         return
@@ -175,10 +146,7 @@ abstract contract ExecuteHandler is EIP712, Nonces {
                 request.proof,
                 request.txData,
                 request.from,
-                token,
-                gasPrice,
-                baseGas,
-                estimatedFees
+                quote
             );
     }
 
@@ -232,18 +200,11 @@ abstract contract ExecuteHandler is EIP712, Nonces {
     /**
      * @notice Encodes the parameters for the executeBatch function
      * @param request The forwarder request
-     * @param token The token address
-     * @param gasPrice The gas price
-     * @param baseGas The base gas
-     * @param estimatedFees The estimated fees
-     * @return encodedParams The encoded parameters
+     * @param quote The gas quote
      */
     function encodeExecuteBatchParams(
         Forwarder.ForwardExecuteBatchData calldata request,
-        address token,
-        uint256 gasPrice,
-        uint256 baseGas,
-        uint256 estimatedFees
+        Quote.GasQuote calldata quote
     ) internal virtual returns (bytes memory encodedParams) {
         bytes4 functionSelector = IFusion.executeBatchTxWithForwarder.selector;
 
@@ -252,10 +213,7 @@ abstract contract ExecuteHandler is EIP712, Nonces {
             request.proof,
             request.txDatas,
             request.from,
-            token,
-            gasPrice,
-            baseGas,
-            estimatedFees
+            quote
         );
     }
 

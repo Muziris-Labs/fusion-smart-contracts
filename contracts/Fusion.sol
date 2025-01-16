@@ -13,12 +13,12 @@ import "@openzeppelin/contracts/interfaces/IERC20Metadata.sol";
 import "./common/NativeCurrencyPaymentFallback.sol";
 import {Enum} from "./libraries/Enum.sol";
 import {Transaction} from "./libraries/Transaction.sol";
+import {Quote} from "./libraries/Quote.sol";
 
 /**
- * @title Fusion - A Smart Contract Wallet powered by ZK-SNARKs with support for Cross-Chain Transactions
+ * @title Fusion - A User Friendly Smart Contract Wallet powered by ZK-SNARKs
  * @dev Most important concepts :
  *    - TxVerifier: Address of the Noir based ZK-SNARK verifier contract that will be used to verify proofs and execute transactions on the Fusion Wallet
- *    - Gas Tank: The gas tank is an EOA or a smart contract where the fees will be transferred
  *    - TxHash: The hash used as a public inputs for the transaction verifier
  *    - nonce: The nonce of the Fusion Wallet
  * @author Anoy Roy Chowdhury - <anoy@valerium.id>
@@ -41,18 +41,10 @@ contract Fusion is
     // The hash used as a public inputs for verifiers
     bytes32 public TxHash;
 
-    // The address of the gas tank contract or EOA
-    address public GasTank;
-
     // The nonce of the Fusion Wallet
     uint256 private nonce;
 
-    event SetupFusion(
-        address txVerifier,
-        address forwarder,
-        address gasTank,
-        bytes32 txHash
-    );
+    event SetupFusion(address txVerifier, address forwarder, bytes32 txHash);
 
     // This constructor ensures that this contract can only be used as a singleton for Proxy contracts
     constructor() {
@@ -69,7 +61,6 @@ contract Fusion is
      *      If the proxy was created without setting up, anyone can call setup and claim the proxy
      * @param _txVerifier The address of the Noir based ZK-SNARK verifier contract
      * @param _forwarder The address of the trusted forwarder
-     * @param _gasTank The address of the gas tank contract or EOA
      * @param _txHash The hash used as a public inputs for verifiers
      * @param to The destination address of the call to execute
      * @param data The data of the call to
@@ -77,23 +68,20 @@ contract Fusion is
     function setupFusion(
         address _txVerifier,
         address _forwarder,
-        address _gasTank,
         bytes32 _txHash,
         address to,
         bytes calldata data
     ) external {
         require(TxVerifier == address(0), "Fusion: already initialized");
-        require(GasTank == address(0), "Fusion: already initialized");
         require(TxHash == bytes32(uint256(0)), "Fusion: already initialized");
 
         setupTrustedForwarder(_forwarder);
         TxVerifier = _txVerifier;
-        GasTank = _gasTank;
         TxHash = _txHash;
 
         setupModules(to, data);
 
-        emit SetupFusion(_txVerifier, _forwarder, _gasTank, _txHash);
+        emit SetupFusion(_txVerifier, _forwarder, _txHash);
     }
 
     /**
@@ -175,19 +163,14 @@ contract Fusion is
      *      The function will revert if the proof is invalid or the execution fails
      * @param _proof The zk-SNARK proof
      * @param txData call to perform
-     * @param token The address of the token to be used for fees
-     * @param gasPrice The gas price for the transaction
-     * @param baseGas The base gas for the transaction
-     * @param estimatedFees The estimated fees for the transaction
+     * @param from The address of the sender
+     * @param quote The gas quote
      */
     function executeTxWithForwarder(
         bytes calldata _proof,
         Transaction.TransactionData calldata txData,
         address from,
-        address token,
-        uint256 gasPrice,
-        uint256 baseGas,
-        uint256 estimatedFees
+        Quote.GasQuote calldata quote
     ) public payable onlyTrustedForwarder {
         // Verifying the proof
         require(
@@ -197,9 +180,9 @@ contract Fusion is
                     txData,
                     _useNonce(),
                     getChainId(),
-                    token,
-                    gasPrice,
-                    baseGas
+                    quote.token,
+                    quote.gasPrice,
+                    quote.baseGas
                 ),
                 TxHash,
                 TxVerifier,
@@ -211,7 +194,7 @@ contract Fusion is
 
         // Check if the balance is sufficient
         require(
-            checkBalance(token, estimatedFees),
+            checkBalance(quote.token, quote.estimatedFees),
             "Fusion: insufficient balance"
         );
 
@@ -228,7 +211,13 @@ contract Fusion is
             "Fusion: execution failed"
         );
 
-        chargeFees(startGas, gasPrice, baseGas, GasTank, token);
+        chargeFees(
+            startGas,
+            quote.gasPrice,
+            quote.baseGas,
+            quote.gasRecipient,
+            quote.token
+        );
     }
 
     /**
@@ -237,19 +226,14 @@ contract Fusion is
      *      The function will revert if the proof is invalid or any of the execution fails
      * @param _proof The zk-SNARK proof
      * @param transactions Array of Transaction objects.
-     * @param token The address of the token to be used for fees
-     * @param gasPrice The gas price for the transaction
-     * @param baseGas The base gas for the transaction
-     * @param estimatedFees The estimated fees for the transaction
+     * @param from The address of the sender
+     * @param quote The gas quote
      */
     function executeBatchTxWithForwarder(
         bytes calldata _proof,
         Transaction.TransactionData[] calldata transactions,
         address from,
-        address token,
-        uint256 gasPrice,
-        uint256 baseGas,
-        uint256 estimatedFees
+        Quote.GasQuote calldata quote
     ) public payable onlyTrustedForwarder {
         // Verifying the proof
         require(
@@ -259,9 +243,9 @@ contract Fusion is
                     transactions,
                     _useNonce(),
                     getChainId(),
-                    token,
-                    gasPrice,
-                    baseGas
+                    quote.token,
+                    quote.gasPrice,
+                    quote.baseGas
                 ),
                 TxHash,
                 TxVerifier,
@@ -273,7 +257,7 @@ contract Fusion is
 
         // Check if the balance is sufficient
         require(
-            checkBalance(token, estimatedFees),
+            checkBalance(quote.token, quote.estimatedFees),
             "Fusion: insufficient balance"
         );
 
@@ -281,7 +265,13 @@ contract Fusion is
 
         batchExecute(transactions, gasleft());
 
-        chargeFees(startGas, gasPrice, baseGas, GasTank, token);
+        chargeFees(
+            startGas,
+            quote.gasPrice,
+            quote.baseGas,
+            quote.gasRecipient,
+            quote.token
+        );
     }
 
     /**

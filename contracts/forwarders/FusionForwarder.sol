@@ -3,6 +3,7 @@ pragma solidity >=0.7.0 <0.9.0;
 
 import "./ExecuteHandler.sol";
 import "../libraries/Forwarder.sol";
+import "../libraries/Quote.sol";
 
 /**
  * @title Fusion Forwarder - Handles the execution of transactions and batch transactions on Fusion Wallet
@@ -22,36 +23,24 @@ contract FusionForwarder is ExecuteHandler {
     /**
      * @notice Executes a transaction using the provided data
      * @param request The ExecuteData Request
-     * @param token The token address
-     * @param gasPrice The gas price
-     * @param baseGas The base gas
-     * @param estimatedFees The estimated fees
+     * @param quote The gas quote
      */
     function execute(
         Forwarder.ForwardExecuteData calldata request,
-        address token,
-        uint256 gasPrice,
-        uint256 baseGas,
-        uint256 estimatedFees
+        Quote.GasQuote calldata quote
     ) public payable virtual {
-        _execute(request, token, gasPrice, baseGas, estimatedFees, true);
+        _execute(request, quote, true);
     }
 
     /**
      * @notice Executes a batch of transactions using the provided data
      * @param request The ExecuteBatchData Request
-     * @param token The token address
-     * @param gasPrice The gas price
-     * @param baseGas The base gas
-     * @param estimatedFees The estimated fees
+     * @param quote The gas quote
      */
     function executeBatch(
         Forwarder.ForwardExecuteBatchData calldata request,
-        address token,
-        uint256 gasPrice,
-        uint256 baseGas,
-        uint256 estimatedFees
+        Quote.GasQuote calldata quote
     ) public payable virtual {
-        _executeBatch(request, token, gasPrice, baseGas, estimatedFees, true);
+        _executeBatch(request, quote, true);
     }
 }

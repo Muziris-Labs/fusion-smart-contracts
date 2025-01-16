@@ -27,7 +27,6 @@ contract FusionProxyFactory {
      * @param TxHash The common public input for proof verification.
      * @param TxVerifier Address of the TxVerifier contract.
      * @param FusionForwarder Address of the FusionForwarder contract.
-     * @param GasTank Address of the GasTank contract.
      * @param TxHash The common public input for proof verification.
      * @param salt Create2 salt to use for calculating the address of the new proxy contract.
      * @param to Contract address for optional delegate call.
@@ -39,7 +38,6 @@ contract FusionProxyFactory {
         bytes32 TxHash,
         address TxVerifier,
         address FusionForwarder,
-        address GasTank,
         bytes32 salt,
         address to,
         bytes calldata data
@@ -64,7 +62,6 @@ contract FusionProxyFactory {
         bytes memory initializer = getInitializer(
             TxVerifier,
             FusionForwarder,
-            GasTank,
             TxHash,
             to,
             data
@@ -91,28 +88,27 @@ contract FusionProxyFactory {
 
     /**
      * @notice Deploys a new proxy with the current singleton.
-     * @param Singleton Address of the singleton contract.
-     * @param TxHash The common public input for proof verification.
      * @param RegistryData Data payload for the registry.
      * @param to Contract address for optional delegate call.
      * @param data Data payload for optional delegate call.
      */
     function createProxyWithTxHash(
-        address Singleton,
-        bytes32 TxHash,
         bytes calldata RegistryData,
         address to,
         bytes calldata data
     ) public returns (FusionProxy proxy) {
-        (address _txVerifier, address _forwarder, address _gasTank) = abi
-            .decode(RegistryData, (address, address, address));
+        (
+            address Singleton,
+            bytes32 TxHash,
+            address _txVerifier,
+            address _forwarder
+        ) = abi.decode(RegistryData, (address, bytes32, address, address));
 
         proxy = _createProxyWithTxHash(
             Singleton,
             TxHash,
             _txVerifier,
             _forwarder,
-            _gasTank,
             to,
             data
         );
@@ -124,7 +120,6 @@ contract FusionProxyFactory {
      * @param _txHash The common public input for proof verification.
      * @param _txVerifier Address of the TxVerifier contract.
      * @param _forwarder Address of the FusionForwarder contract.
-     * @param _gasTank Address of the GasTank contract.
      * @param to Contract address for optional delegate call.
      * @param data Data payload for optional delegate call.
      * @dev The domain name is used to calculate the salt for the CREATE2 call.
@@ -134,20 +129,17 @@ contract FusionProxyFactory {
         bytes32 _txHash,
         address _txVerifier,
         address _forwarder,
-        address _gasTank,
         address to,
         bytes calldata data
     ) internal returns (FusionProxy proxy) {
         // If the domain changes the proxy address should change too.
-        bytes32 salt = keccak256(
-            abi.encodePacked(keccak256(abi.encodePacked(_txHash)))
-        );
+        bytes32 salt = keccak256(abi.encodePacked(_txHash));
+
         proxy = deployProxy(
             _singleton,
             _txHash,
             _txVerifier,
             _forwarder,
-            _gasTank,
             salt,
             to,
             data
@@ -176,7 +168,6 @@ contract FusionProxyFactory {
      * @notice Returns the initializer for the Fusion contract.
      * @param _txVerifier  The address of the TxVerifier contract.
      * @param _forwarder The address of the FusionForwarder contract.
-     * @param _gasTank The address of the GasTank.
      * @param _txHash The common public input for proof verification.
      * @param _to Contract address for optional delegate call.
      * @param _data Data payload for optional delegate call.
@@ -184,7 +175,6 @@ contract FusionProxyFactory {
     function getInitializer(
         address _txVerifier,
         address _forwarder,
-        address _gasTank,
         bytes32 _txHash,
         address _to,
         bytes calldata _data
@@ -194,7 +184,6 @@ contract FusionProxyFactory {
                 IFusion.setupFusion.selector,
                 _txVerifier,
                 _forwarder,
-                _gasTank,
                 _txHash,
                 _to,
                 _data
