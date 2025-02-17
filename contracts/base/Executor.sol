@@ -26,9 +26,11 @@ abstract contract Executor {
         Enum.Operation operation,
         uint256 txGas
     ) internal returns (bool success) {
+        uint256 gasLeft;
+
         if (operation == Enum.Operation.DelegateCall) {
             /* solhint-disable no-inline-assembly */
-            assembly {
+            assembly ("memory-safe") {
                 success := delegatecall(
                     txGas,
                     to,
@@ -37,11 +39,13 @@ abstract contract Executor {
                     0,
                     0
                 )
+
+                gasLeft := gas()
             }
             /* solhint-enable no-inline-assembly */
         } else {
             /* solhint-disable no-inline-assembly */
-            assembly {
+            assembly ("memory-safe") {
                 success := call(
                     txGas,
                     to,
@@ -51,8 +55,18 @@ abstract contract Executor {
                     0,
                     0
                 )
+
+                gasLeft := gas()
             }
             /* solhint-enable no-inline-assembly */
+        }
+
+        // Check if the gas left is less than 1/63 of the initial gas
+        // To avoid insufficient gas griefing attacks, as referenced in https://ronan.eth.limo/blog/ethereum-gas-dangers/
+        if (gasLeft < txGas / 63) {
+            assembly ("memory-safe") {
+                invalid()
+            }
         }
     }
 
@@ -62,11 +76,9 @@ abstract contract Executor {
      *      - if the contract at `to` address has code or not
      *      It is the responsibility of the caller to perform such checks.
      * @param transactions Array of Transaction objects.
-     * @param txGas Gas limit for each transaction.
      */
     function batchExecute(
-        Transaction.TransactionData[] memory transactions,
-        uint256 txGas
+        Transaction.TransactionData[] memory transactions
     ) internal {
         for (uint256 i = 0; i < transactions.length; i++) {
             bool success = execute(
@@ -74,7 +86,7 @@ abstract contract Executor {
                 transactions[i].value,
                 transactions[i].data,
                 transactions[i].operation,
-                txGas
+                transactions[i].gasLimit
             );
 
             require(success, "Fusion: batch execution failed");

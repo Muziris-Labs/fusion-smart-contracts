@@ -11,19 +11,17 @@ import {Quote} from "../libraries/Quote.sol";
  */
 
 interface IFusion {
-    event SetupFusion(address txVerifier, address forwarder, bytes32 txHash);
+    event SetupFusion(address txVerifier, bytes32 txHash);
 
     /**
      * @notice Initializes the Fusion Wallet
      * @param _txVerifier The address of the Noir based ZK-SNARK verifier contract
-     * @param _forwarder The address of the trusted forwarder
      * @param _txHash The hash used as a public inputs for verifiers
      * @param to The destination address of the call to execute
      * @param data The data of the call to
      */
     function setupFusion(
         address _txVerifier,
-        address _forwarder,
         bytes32 _txHash,
         address to,
         bytes calldata data
@@ -53,13 +51,11 @@ interface IFusion {
      * @notice Executes a transaction with a trusted forwarder
      * @param _proof The zk-SNARK proof
      * @param txData call to perform
-     * @param from The address of the sender
      * @param quote The gas quote
      */
-    function executeTxWithForwarder(
+    function executeTxWithProvider(
         bytes calldata _proof,
         Transaction.TransactionData calldata txData,
-        address from,
         Quote.GasQuote calldata quote
     ) external payable;
 
@@ -67,13 +63,11 @@ interface IFusion {
      * @notice Executes a batch of transactions with a trusted forwarder
      * @param _proof The zk-SNARK proof
      * @param transactions Array of Transaction objects
-     * @param from The address of the sender
      * @param quote The gas quote
      */
-    function executeBatchTxWithForwarder(
+    function executeBatchTxWithProvider(
         bytes calldata _proof,
         Transaction.TransactionData[] calldata transactions,
-        address from,
         Quote.GasQuote calldata quote
     ) external payable;
 

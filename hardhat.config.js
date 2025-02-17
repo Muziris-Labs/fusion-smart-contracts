@@ -34,10 +34,12 @@ module.exports = {
     },
     optimism: {
       url: `https://optimism-rpc.publicnode.com`,
+      chainId: 10,
       accounts: [PRIVATE_KEY],
     },
     base: {
       url: `https://base-rpc.publicnode.com`,
+      chainId: 8453,
       accounts: [PRIVATE_KEY],
     },
     mode: {
@@ -46,6 +48,7 @@ module.exports = {
     },
     baseSepolia: {
       url: `https://sepolia.base.org`,
+      chainId: 84532,
       accounts: [PRIVATE_KEY],
     },
     modeSepolia: {
@@ -62,6 +65,7 @@ module.exports = {
     },
     fraxtal: {
       url: "https://rpc.frax.com",
+      chainId: 252,
       accounts: [PRIVATE_KEY],
     },
     moonbeam: {
@@ -70,6 +74,11 @@ module.exports = {
     },
     astar: {
       url: "https://1rpc.io/astr",
+      accounts: [PRIVATE_KEY],
+    },
+    unichain: {
+      url: "https://mainnet.unichain.org",
+      chainId: 130,
       accounts: [PRIVATE_KEY],
     },
   },

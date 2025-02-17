@@ -15,23 +15,17 @@ abstract contract ProofManager is Verifier {
      * @param _message The message hash
      * @param _hash The hash of the user that verifies the proof
      * @param _verifier The address of the verifier contract
-     * @param _verifyingAddress The address of the EOA that signed the message through trusted forwarder
-     * @param _signingAddress The address of the EOA that executed the transaction
      * @dev _verifyingAddress should be address(0) if the message was signed directly by the EOA
      */
     function verify(
         bytes calldata _proof,
         bytes32 _message,
         bytes32 _hash,
-        address _verifier,
-        address _verifyingAddress,
-        address _signingAddress
+        address _verifier
     ) internal view returns (bool) {
         bytes32[] memory publicInputs = Conversion.convertToInputs(
             _message,
-            _hash,
-            _verifyingAddress,
-            _signingAddress
+            _hash
         );
         return verifyProof(_proof, publicInputs, _verifier);
     }

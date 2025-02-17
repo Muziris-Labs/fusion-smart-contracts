@@ -13,5 +13,6 @@ library Quote {
         uint256 baseGas;
         uint256 estimatedFees;
         address gasRecipient;
+        uint48 deadline;
     }
 }

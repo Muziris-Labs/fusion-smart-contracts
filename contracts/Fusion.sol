@@ -7,7 +7,7 @@ import "./common/NativeCurrencyPaymentFallback.sol";
 import "./base/ModuleManager.sol";
 import "./base/ProofManager.sol";
 import "./handler/TokenCallbackHandler.sol";
-import "./external/Fusion2771Context.sol";
+import "./external/FusionContext.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/interfaces/IERC20Metadata.sol";
 import "./common/NativeCurrencyPaymentFallback.sol";
@@ -31,7 +31,7 @@ contract Fusion is
     ProofManager,
     TokenCallbackHandler,
     NativeCurrencyPaymentFallback,
-    Fusion2771Context
+    FusionContext
 {
     string public constant VERSION = "1.0.0";
 
@@ -44,7 +44,7 @@ contract Fusion is
     // The nonce of the Fusion Wallet
     uint256 private nonce;
 
-    event SetupFusion(address txVerifier, address forwarder, bytes32 txHash);
+    event SetupFusion(address txVerifier, bytes32 txHash);
 
     // This constructor ensures that this contract can only be used as a singleton for Proxy contracts
     constructor() {
@@ -60,14 +60,12 @@ contract Fusion is
      * @dev The function is called only once during deployment
      *      If the proxy was created without setting up, anyone can call setup and claim the proxy
      * @param _txVerifier The address of the Noir based ZK-SNARK verifier contract
-     * @param _forwarder The address of the trusted forwarder
      * @param _txHash The hash used as a public inputs for verifiers
      * @param to The destination address of the call to execute
      * @param data The data of the call to
      */
     function setupFusion(
         address _txVerifier,
-        address _forwarder,
         bytes32 _txHash,
         address to,
         bytes calldata data
@@ -75,13 +73,12 @@ contract Fusion is
         require(TxVerifier == address(0), "Fusion: already initialized");
         require(TxHash == bytes32(uint256(0)), "Fusion: already initialized");
 
-        setupTrustedForwarder(_forwarder);
         TxVerifier = _txVerifier;
         TxHash = _txHash;
 
         setupModules(to, data);
 
-        emit SetupFusion(_txVerifier, _forwarder, _txHash);
+        emit SetupFusion(_txVerifier, _txHash);
     }
 
     /**
@@ -92,7 +89,7 @@ contract Fusion is
     function executeTx(
         bytes calldata _proof,
         Transaction.TransactionData calldata txData
-    ) public payable notTrustedForwarder returns (bool success) {
+    ) public payable returns (bool success) {
         // Verifying the proof
         require(
             verify(
@@ -103,12 +100,11 @@ contract Fusion is
                     getChainId(),
                     address(0),
                     0,
+                    0,
                     0
                 ),
                 TxHash,
-                TxVerifier,
-                address(0), // 0x0 as the verifying address
-                msg.sender
+                TxVerifier
             ),
             "Fusion: invalid proof"
         );
@@ -119,7 +115,7 @@ contract Fusion is
             txData.value,
             txData.data,
             txData.operation,
-            gasleft()
+            txData.gasLimit
         );
     }
 
@@ -132,7 +128,7 @@ contract Fusion is
     function executeBatchTx(
         bytes calldata _proof,
         Transaction.TransactionData[] calldata transactions
-    ) public payable notTrustedForwarder {
+    ) public payable {
         // Verifying the proof
         require(
             verify(
@@ -143,35 +139,30 @@ contract Fusion is
                     getChainId(),
                     address(0),
                     0,
+                    0,
                     0
                 ),
                 TxHash,
-                TxVerifier,
-                address(0), // 0x0 as the verifying address
-                msg.sender
+                TxVerifier
             ),
             "Fusion: invalid proof"
         );
 
         // Execute the batch call
-        batchExecute(transactions, gasleft());
+        batchExecute(transactions);
     }
 
     /**
-     * @notice Executes a transaction with a trusted forwarder
-     * @dev The function is called by the trusted forwarder
-     *      The function will revert if the proof is invalid or the execution fails
+     * @notice Executes a transaction with a gas quote from a provider
      * @param _proof The zk-SNARK proof
      * @param txData call to perform
-     * @param from The address of the sender
      * @param quote The gas quote
      */
-    function executeTxWithForwarder(
+    function executeTxWithProvider(
         bytes calldata _proof,
         Transaction.TransactionData calldata txData,
-        address from,
         Quote.GasQuote calldata quote
-    ) public payable onlyTrustedForwarder {
+    ) public payable {
         // Verifying the proof
         require(
             verify(
@@ -182,12 +173,11 @@ contract Fusion is
                     getChainId(),
                     quote.token,
                     quote.gasPrice,
-                    quote.baseGas
+                    quote.baseGas,
+                    quote.deadline
                 ),
                 TxHash,
-                TxVerifier,
-                from,
-                tx.origin
+                TxVerifier
             ),
             "Fusion: invalid proof"
         );
@@ -198,6 +188,9 @@ contract Fusion is
             "Fusion: insufficient balance"
         );
 
+        // Check Deadline
+        require(block.timestamp <= quote.deadline, "Fusion: deadline exceeded");
+
         uint256 startGas = gasleft();
 
         require(
@@ -206,7 +199,7 @@ contract Fusion is
                 txData.value,
                 txData.data,
                 txData.operation,
-                gasleft()
+                txData.gasLimit
             ),
             "Fusion: execution failed"
         );
@@ -221,20 +214,16 @@ contract Fusion is
     }
 
     /**
-     * @notice Executes a batch of transactions with a trusted forwarder
-     * @dev The function is called by the trusted forwarder
-     *      The function will revert if the proof is invalid or any of the execution fails
+     * @notice Executes a batch of transactions with a gas quote from a provider
      * @param _proof The zk-SNARK proof
      * @param transactions Array of Transaction objects.
-     * @param from The address of the sender
      * @param quote The gas quote
      */
-    function executeBatchTxWithForwarder(
+    function executeBatchTxWithProvider(
         bytes calldata _proof,
         Transaction.TransactionData[] calldata transactions,
-        address from,
         Quote.GasQuote calldata quote
-    ) public payable onlyTrustedForwarder {
+    ) public payable {
         // Verifying the proof
         require(
             verify(
@@ -245,12 +234,11 @@ contract Fusion is
                     getChainId(),
                     quote.token,
                     quote.gasPrice,
-                    quote.baseGas
+                    quote.baseGas,
+                    quote.deadline
                 ),
                 TxHash,
-                TxVerifier,
-                from,
-                tx.origin
+                TxVerifier
             ),
             "Fusion: invalid proof"
         );
@@ -261,9 +249,12 @@ contract Fusion is
             "Fusion: insufficient balance"
         );
 
+        // Check Deadline
+        require(block.timestamp <= quote.deadline, "Fusion: deadline exceeded");
+
         uint256 startGas = gasleft();
 
-        batchExecute(transactions, gasleft());
+        batchExecute(transactions);
 
         chargeFees(
             startGas,
@@ -311,16 +302,7 @@ contract Fusion is
         bytes32 _hash,
         bytes calldata _signature
     ) public view returns (bytes4 magicValue) {
-        if (
-            verify(
-                _signature,
-                _hash,
-                TxHash,
-                TxVerifier,
-                address(0),
-                address(this)
-            )
-        ) {
+        if (verify(_signature, _hash, TxHash, TxVerifier)) {
             return 0x1626ba7e;
         } else {
             return 0xffffffff;

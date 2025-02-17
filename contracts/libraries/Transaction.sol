@@ -13,6 +13,7 @@ library Transaction {
         uint256 value;
         bytes data;
         Enum.Operation operation;
+        uint256 gasLimit;
     }
 
     /**
@@ -30,7 +31,8 @@ library Transaction {
         uint256 _chainId,
         address _token,
         uint256 _gasPrice,
-        uint256 _baseGas
+        uint256 _baseGas,
+        uint48 _deadline
     ) internal pure returns (bytes memory) {
         return
             abi.encode(
@@ -42,7 +44,9 @@ library Transaction {
                 _chainId,
                 _token,
                 _gasPrice,
-                _baseGas
+                _baseGas,
+                _deadline,
+                _tx.gasLimit
             );
     }
 
@@ -61,7 +65,8 @@ library Transaction {
         uint256 _chainId,
         address _token,
         uint256 _gasPrice,
-        uint256 _baseGas
+        uint256 _baseGas,
+        uint48 _deadline
     ) internal pure returns (bytes32) {
         return
             keccak256(
@@ -71,7 +76,8 @@ library Transaction {
                     _chainId,
                     _token,
                     _gasPrice,
-                    _baseGas
+                    _baseGas,
+                    _deadline
                 )
             );
     }
@@ -91,7 +97,8 @@ library Transaction {
         uint256 _chainId,
         address _token,
         uint256 _gasPrice,
-        uint256 _baseGas
+        uint256 _baseGas,
+        uint48 _deadline
     ) internal pure returns (bytes32) {
         bytes memory txsData;
         for (uint256 i = 0; i < _txs.length; i++) {
@@ -103,7 +110,8 @@ library Transaction {
                     _chainId,
                     _token,
                     _gasPrice,
-                    _baseGas
+                    _baseGas,
+                    _deadline
                 )
             );
         }

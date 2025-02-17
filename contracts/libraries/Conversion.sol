@@ -24,23 +24,17 @@ library Conversion {
      * @notice Convert the message hash to public inputs
      * @param _message  The message hash
      * @param _hash  The hash of the user that verifies the proof
-     * @param _verifyingAddress Should be address(0) if the message was signed directly by the EOA
-     * @param _signingAddress The address of the EOA that executed the transaction
      */
     function convertToInputs(
         bytes32 _message,
-        bytes32 _hash,
-        address _verifyingAddress,
-        address _signingAddress
+        bytes32 _hash
     ) internal pure returns (bytes32[] memory) {
-        bytes32[] memory byte32Inputs = new bytes32[](35);
+        bytes32[] memory byte32Inputs = new bytes32[](33);
         bytes32 messageHash = getEthSignedMessageHash(_message);
         for (uint256 i = 0; i < 32; i++) {
             byte32Inputs[i] = convertToPaddedByte32(messageHash[i]);
         }
         byte32Inputs[32] = _hash;
-        byte32Inputs[33] = bytes32(uint256(uint160(_verifyingAddress)));
-        byte32Inputs[34] = bytes32(uint256(uint160(_signingAddress)));
 
         return byte32Inputs;
     }

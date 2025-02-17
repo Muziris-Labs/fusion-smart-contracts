@@ -1,36 +1,24 @@
 # Fusion - Contracts
 
 ![Made-With-Solidity](https://img.shields.io/badge/MADE%20WITH-SOLIDITY-000000.svg?colorA=222222&style=for-the-badge&logoWidth=14&logo=solidity)
-![Made-With-Wormhole](https://img.shields.io/badge/MADE%20WITH-wormhole-ffffff.svg?colorA=222222&style=for-the-badge&logoWidth=14)
-![Made-With-Avalanche](https://img.shields.io/badge/Deployed%20on-Avalanche-ff0000.svg?colorA=222222&style=for-the-badge&logoWidth=14)
-![Made-With-Optimism](https://img.shields.io/badge/Deployed%20on-Optimism-ff0000.svg?colorA=222222&style=for-the-badge&logoWidth=14)
-![Made-With-Base](https://img.shields.io/badge/Deployed%20on-Base-0000ff.svg?colorA=222222&style=for-the-badge&logoWidth=14)
-
-> Fusion is a multi-chain smart contract wallet that leverages zero-knowledge proofs and Wormhole for cross-chain deployments and authentication.
-
-These are the solidity smart contracts used in _[getFusion.tech](https://getFusion.tech/)_
 
 ## Deployments
 
-- **Avalanche Fuji (Base-Chain)**
+![Made-With-Optimism](https://img.shields.io/badge/Deployed%20on-Optimism-ff0000.svg?colorA=222222&style=for-the-badge&logoWidth=14)
+![Made-With-Base](https://img.shields.io/badge/Deployed%20on-Base-0000ff.svg?colorA=222222&style=for-the-badge&logoWidth=14)
+![Made-With-Fraxtal](https://img.shields.io/badge/Deployed%20on-Fraxtal-000000.svg?colorA=222222&style=for-the-badge&logoWidth=14)
+![Made-With-Unichain](https://img.shields.io/badge/Deployed%20on-Unichain-ff52f9.svg?colorA=222222&style=for-the-badge&logoWidth=14)
 
-  - Fusion - [0x2E03BAf7cAAee536e5680f8B210e48C89e18204A](https://testnet.routescan.io/address/0x2E03BAf7cAAee536e5680f8B210e48C89e18204A)
-  - Fusion Forwarder - [0xfC417EE9c5ee1018acf3297a608982dD547fAc7C](https://testnet.routescan.io/address/0xfC417EE9c5ee1018acf3297a608982dD547fAc7C)
-  - Factory Forwarder - [0x39Ba4C7C6538D1c6529C9562851444F26Cba8f9F](https://testnet.routescan.io/address/0x39Ba4C7C6538D1c6529C9562851444F26Cba8f9F)
-  - Fusion Proxy Factory - [0x12d8f1C2e392a2A6864456393cDCb9790d83D639](https://testnet.routescan.io/address/0x12d8f1C2e392a2A6864456393cDCb9790d83D639)
+> Fusion is a smart contract wallet that leverages zero-knowledge proofs for authentication. Fusion Wallet is designed to accept payments in any ERC-20 tokens with the help of Gas Operators (Providers). This Providers provide you with quotes for the transaction and you can choose the best one for you.
 
-- **Optimism Sepolia (Side-Chain)**
+These are the solidity smart contracts used in _[getFusion.tech](https://getFusion.tech/)_
 
-  - Fusion - [0x2E03BAf7cAAee536e5680f8B210e48C89e18204A](https://testnet.routescan.io/address/0x2E03BAf7cAAee536e5680f8B210e48C89e18204A)
-  - Fusion Forwarder - [0xfC417EE9c5ee1018acf3297a608982dD547fAc7C](https://testnet.routescan.io/address/0xfC417EE9c5ee1018acf3297a608982dD547fAc7C)
-  - Factory Forwarder - [0x39Ba4C7C6538D1c6529C9562851444F26Cba8f9F](https://testnet.routescan.io/address/0x39Ba4C7C6538D1c6529C9562851444F26Cba8f9F)
-  - Fusion Proxy Factory - [0x12d8f1C2e392a2A6864456393cDCb9790d83D639](https://testnet.routescan.io/address/0x12d8f1C2e392a2A6864456393cDCb9790d83D639)
+## Contracts
 
-- **Base Sepolia (Side-Chain)**
-  - Fusion - [0x2E03BAf7cAAee536e5680f8B210e48C89e18204A](https://testnet.routescan.io/address/0x2E03BAf7cAAee536e5680f8B210e48C89e18204A)
-  - Fusion Forwarder - [0xfC417EE9c5ee1018acf3297a608982dD547fAc7C](https://testnet.routescan.io/address/0xfC417EE9c5ee1018acf3297a608982dD547fAc7C)
-  - Factory Forwarder - [0x39Ba4C7C6538D1c6529C9562851444F26Cba8f9F](https://testnet.routescan.io/address/0x39Ba4C7C6538D1c6529C9562851444F26Cba8f9F)
-  - Fusion Proxy Factory - [0x12d8f1C2e392a2A6864456393cDCb9790d83D639](https://testnet.routescan.io/address/0x12d8f1C2e392a2A6864456393cDCb9790d83D639)
+- **Fusion** deployed to: [0xfa23217D680da5d755EBf601700800da809008B3](https://routescan.io/address/0xfa23217D680da5d755EBf601700800da809008B3)
+- **FusionProxyFactory** deployed to: [0x26F230BCa86f02E73B487f583f9D98D54266b3B5](https://routescan.io/address/0x26F230BCa86f02E73B487f583f9D98D54266b3B5)
+- **OpenBatchExecutor** deployed to: [0xDB6954b2fD7Ca28A30466452dfA34e6F73bfe70b](https://routescan.io/address/0xDB6954b2fD7Ca28A30466452dfA34e6F73bfe70b)
+- **OpenBatchExecutorNoFailure** deployed to: [0x160860b934179D2F70da22eF85E20Cb4d0820c31](https://routescan.io/address/0x160860b934179D2F70da22eF85E20Cb4d0820c31)
 
 #
 
@@ -55,5 +43,5 @@ cp .env.example .env
 npx hardhat compile
 
 # Deploy on Avalanche Fuji, Check hardhat.config.js to check or add supported chains
-npx hardhat run --network fuji scripts/deploy.js
+npx hardhat run --network optimism scripts/deploy.js
 ```

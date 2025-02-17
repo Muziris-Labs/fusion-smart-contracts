@@ -6,26 +6,11 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 /**
- * @dev Context variant with ERC-2771 support. This version of the context is used to support the Fusion Wallet.
+ * @dev FusionContext - A contract that charges fees for the transaction.
  * @author Anoy Roy Chowdhury - <anoy@valerium.id>
  */
 
-abstract contract Fusion2771Context {
-    address private _trustedForwarder;
-
-    /**
-     * @notice Sets the trusted forwarder for the context, could be called only once.
-     * @param forwarder The forwarder to be trusted
-     */
-    function setupTrustedForwarder(address forwarder) internal {
-        require(
-            _trustedForwarder == address(0),
-            "Fusion: forwarder already set"
-        );
-        require(forwarder != address(0), "Fusion: invalid trusted forwarder");
-        _trustedForwarder = forwarder;
-    }
-
+abstract contract FusionContext {
     /**
      * @notice Charges the fees for the transaction.
      * @param startGas Gas used before calling the function
@@ -69,43 +54,5 @@ abstract contract Fusion2771Context {
                 revert("Fusion: fee transfer failed");
             }
         }
-    }
-
-    /**
-     * @dev Returns the address of the trusted forwarder.
-     */
-    function trustedForwarder() public view virtual returns (address) {
-        return _trustedForwarder;
-    }
-
-    /**
-     * @dev Indicates whether any particular address is the trusted forwarder.
-     */
-    function isTrustedForwarder(
-        address forwarder
-    ) public view virtual returns (bool) {
-        return forwarder == trustedForwarder();
-    }
-
-    /**
-     * @dev Modifier to check if the caller is the trusted forwarder.
-     */
-    modifier onlyTrustedForwarder() {
-        require(
-            isTrustedForwarder(msg.sender),
-            "Fusion: caller is not the trusted forwarder"
-        );
-        _;
-    }
-
-    /**
-     * @dev Modifier to check if the caller is not the trusted forwarder.
-     */
-    modifier notTrustedForwarder() {
-        require(
-            !isTrustedForwarder(msg.sender),
-            "Fusion: caller is the trusted forwarder"
-        );
-        _;
     }
 }
